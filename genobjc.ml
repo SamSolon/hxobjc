@@ -1254,7 +1254,11 @@ and generateExpression ctx e =
 			ctx.writer#write ((if !pointer then "*" else "")^")[");
 			generateValue ctx e1;
 			ctx.writer#write " hx_objectAtIndex:";
-			generateValue ctx e2;
+      let savepointer = ctx.require_pointer in
+			ctx.require_pointer <- false;
+		  generateValue ctx e2;
+			ctx.require_pointer <- savepointer;
+			
 			ctx.writer#write "])";
 		end
 	| TBinop (Ast.OpEq,e1,e2) when (match isSpecialCompare e1 e2 with Some c -> true | None -> false) ->
