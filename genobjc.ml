@@ -2231,7 +2231,7 @@ let generateProperty ctx field pos is_static =
 		| _ -> "" in
 		let setter = match field.cf_kind with
 		| Var v -> (match v.v_write with
-			| AccCall -> Printf.sprintf ", setter=set_%s" field.cf_name;
+			| AccCall -> Printf.sprintf ", setter=set_%s:" field.cf_name;
 			| _ -> "")
 		| _ -> "" in
 		let is_enum = (match field.cf_type with
