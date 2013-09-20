@@ -159,7 +159,7 @@ class List<T> {
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
-		#if (java || cs)
+		#if (java || cs || objc)
 		var h = h;
 		return cast {
 			hasNext : function() {
@@ -178,11 +178,11 @@ class List<T> {
 		#else
 		return cast {
 			h : h,
-			hasNext : function() {
+			hasNext : function():Bool {
 				return untyped (__this__.h != null);
 			},
 			next : function() {
-				untyped {
+				untyped {				
 					if( __this__.h == null )
 						return null;
 					var x = __this__.h[0];
