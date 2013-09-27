@@ -1334,8 +1334,27 @@ and generateExpression ctx e =
 		(* if isString ctx e1 then ctx.writer#write ("\"-isString1-\""); *)
 		(* if isString ctx e2 then ctx.writer#write ("\"-isString2-\""); *)
 		
+		let s_type = s_type(print_context()) in
+    if (s_op="+" or s_op="+=") then begin
+			match e2.eexpr with 
+			| TLocal v -> 
+				let et2 = match v.v_type with 
+				| TMono _ -> "TMono"
+				| TEnum _ -> "TEnum"
+				| TInst _ -> "TInst"
+				| TType _ -> "TType"
+				| TFun _ -> "TFun"
+				| TAnon _ -> "TAnon"
+				| TDynamic _ -> "TDynamic"
+				| TLazy _ -> "TLazy"
+				| TAbstract _ -> "TAbstract" in  
+			print_endline("-------- " ^ s_op ^ " " ^ et2
+			                          ^ " e1:" ^ (string_of_bool (isString ctx e1)) ^ " " ^ (s_expr s_type e1) 
+			                          ^ " e2:" ^ (string_of_bool (isString ctx e2)) ^ " " ^ (s_expr s_type e2))
+			| _ -> ()
+	  end;
 		
-		if (s_op="+" or s_op="+=") && (isString ctx e1 or isString ctx e2) then begin
+    if (s_op="+" or s_op="+=") && (isString ctx e1 or isString ctx e2) then begin
 			ctx.generating_string_append <- ctx.generating_string_append + 1;
 			(match s_op with
 				| "+" ->
@@ -1874,10 +1893,21 @@ and generateExpression ctx e =
 			ctx.writer#write (Printf.sprintf "%s %s%s" t (addPointerIfNeeded t) (remapKeyword v.v_name));
 			(* Check if this Type is a Class and if it's imported *)
 			(match v.v_type with
+				| TMono _ -> print_endline("Local var TMono for " ^ v.v_name ^ " -> " ^ t)
+				| TEnum _ -> print_endline("Local var TEnum for " ^ v.v_name ^ " -> " ^ t)
+				| TInst _ -> print_endline("Local var TInst for " ^ v.v_name ^ " -> " ^ t);
+				| TType _ -> print_endline("Local var TType for " ^ v.v_name ^ " -> " ^ t);
+				| TFun  _ -> print_endline("Local var TFun for " ^ v.v_name ^ " -> " ^ t);
+				| TAnon _ -> print_endline("Local var TAnon for " ^ v.v_name ^ " -> " ^ t);
+				| TDynamic _ -> print_endline("Local var TDynamic for " ^ v.v_name ^ " -> " ^ t);
+				| TLazy _ -> print_endline("Local var TLazy for " ^ v.v_name ^ " -> " ^ t);
+				| TAbstract _ -> print_endline("Local var TAbstract for " ^ v.v_name ^ " -> " ^ t));
+			(match v.v_type with
 			| TMono r -> (match !r with None -> () | Some t -> 
 				match t with
 				| TInst (c,_) ->
 					(* ctx.imports_manager#add_class_path c.cl_path; *)
+					print_endline("!!!!!!! add_class " ^ joinClassPath c.cl_path ".");
 					ctx.imports_manager#add_class c
 				| _ -> ())
 			| _ -> ());
@@ -3498,6 +3528,7 @@ let generateHeader ctx files_manager imports_manager =
 	ctx.writer#new_line;
 	(* Import classes *)
 	imports_manager#remove_class_path ctx.class_def.cl_path;
+	List.iter(fun imp -> print_endline("Generate import "^(joinClassPath imp "/"))) imports_manager#get_imports;
 	ctx.writer#write_headers_imports ctx.class_def.cl_module.m_path imports_manager#get_imports;
 	ctx.writer#write_headers_imports_custom imports_manager#get_imports_custom;
 	ctx.writer#new_line;
@@ -3576,8 +3607,8 @@ let generate common_ctx =
 		
 		match obj_def with
 		| TClassDecl class_def ->
-			
 			if not class_def.cl_extern then begin
+        print_endline("-- checking " ^ (joinClassPath class_def.cl_path "/"));
 				(* let gen = new_ctx common_ctx in
 				init_ctx gen;
 				Hashtbl.add gen.gspecial_vars "__objc__" true; (* add here all special __vars__ you need *)
