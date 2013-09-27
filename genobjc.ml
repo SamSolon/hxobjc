@@ -649,9 +649,26 @@ let rec typeToString ctx t p =
 	(* | TEnum (te,tp) -> "TEnumInBlock" *)
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"id"
-	| TAbstract (a,_) ->(* ctx.writer#write "TAbstract?"; *)
-		ctx.imports_manager#add_abstract a;
-		remapHaxeTypeToObjc ctx true a.a_path p;
+	| TAbstract (a,pl) ->(* ctx.writer#write "TAbstract?"; *)
+		ctx.imports_manager#add_abstract a pl;
+		if Meta.has Meta.MultiType a.a_meta then begin
+			let underlying = Codegen.Abstract.get_underlying_type a pl in
+			print_endline("++++++++++++++++typeToString abstract underlying " ^ (joinClassPath a.a_path ".") ^ " = " ^ 
+				(match underlying with 
+					| TType(tdef, tparams) -> "TType"
+					| TMono _ -> "TMono"
+					| TEnum _ -> "TEnum"
+					| TInst(tclass, tparams)  
+						 -> "TInst " ^ (joinClassPath tclass.cl_path "/")
+												^ " " ^ (if Meta.has Meta.Category tclass.cl_meta then (getFirstMetaValue Meta.Category tclass.cl_meta) else "")
+					| TFun _ -> "TFun"
+					| TAnon _ -> "TAnon"
+					| TDynamic _ -> "TDynamic"
+					| TLazy _ -> "TLazy"
+					| _ -> "Something else")); 
+			typeToString ctx underlying p 
+		end else 
+			remapHaxeTypeToObjc ctx true a.a_path p;
 	| TEnum (e,_) ->(* ctx.writer#write "TEnum-"; *)
 		if e.e_extern then
 			(match e.e_path with
@@ -1917,9 +1934,9 @@ and generateExpression ctx e =
 				let inited = ref true in
 				if ctx.generating_calls > 0 then begin
 					inited := false;
-					ctx.writer#write (Printf.sprintf "[%s alloc] " (remapHaxeTypeToObjc ctx false c.cl_path c.cl_pos))
+					ctx.writer#write (Printf.sprintf "[%s alloc] " (typeToString ctx (TInst(c, params)) params))
 				end else
-					ctx.writer#write (Printf.sprintf "[[%s alloc] init" (remapHaxeTypeToObjc ctx false c.cl_path c.cl_pos));
+          ctx.writer#write (Printf.sprintf "[[%s alloc] init" (typeToString ctx (TInst(c, params)) params));
 				(* (match c.cl_path with
 					| (["ios";"ui"],"UIImageView") -> ctx.writer#write (Printf.sprintf "[%s alloc]" (remapHaxeTypeToObjc ctx false c.cl_path c.cl_pos)); inited := false;
 					| _ -> ctx.writer#write (Printf.sprintf "[[%s alloc] init" (remapHaxeTypeToObjc ctx false c.cl_path c.cl_pos));
