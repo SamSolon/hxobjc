@@ -686,7 +686,8 @@ let rec typeToString ctx t p =
 			remapHaxeTypeToObjc ctx true e.e_path p
 		end
 	| TInst (c,_) ->(* ctx.writer#write "TInst?"; *)
-		(match c.cl_kind with
+		if Meta.has Meta.Category c.cl_meta then getFirstMetaValue Meta.Category c.cl_meta
+		else (match c.cl_kind with
 		| KNormal | KGeneric | KGenericInstance _ ->
 			ctx.imports_manager#add_class c;
 			remapHaxeTypeToObjc ctx false c.cl_path p
@@ -728,7 +729,9 @@ let rec typeToString ctx t p =
 				| TEnum ({ e_path = [],"Bool" },_) -> "BOOL"
 				| _ -> typeToString ctx t p)
 			| _ -> assert false);
-		| _ -> typeToString ctx (apply_params t.t_types args t.t_type) p)
+		| _ -> 
+			if Meta.has Meta.Category t.t_meta then getFirstMetaValue Meta.Category t.t_meta
+			else typeToString ctx (apply_params t.t_types args t.t_type) p)
 	| TLazy f ->
 		typeToString ctx ((!f)()) p
 ;;
