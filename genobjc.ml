@@ -411,6 +411,9 @@ let isSpecialCompare e1 e2 =
 let rec isString ctx e =
 	(* TODO: left side of the binop is never discovered as being string *)
 	(* ctx.writer#write ("\"-CHECK ISSTRING-\""); *)
+	let isStringPath path = (match path with
+														| ([], "String") -> true
+														| _ -> false) in  
 	(match e.eexpr with
 	| TBinop (op,e1,e2) -> (* ctx.writer#write ("\"-redirect check isString-\""); *) isString ctx e1 or isString ctx e2
 	| TLocal v ->
@@ -433,6 +436,7 @@ let rec isString ctx e =
 				| _ -> false
 				)
 			)
+		| TInst(cl,_) -> isStringPath cl.cl_path
 			
 		(* | TConst c -> true *)
 		| _ -> false
