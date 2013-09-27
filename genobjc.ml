@@ -2215,6 +2215,12 @@ and generateValue ctx e =
 		v()
 
 let generateProperty ctx field pos is_static =
+  (* Make sure we're importing the class for this property *)
+	(match field.cf_type with
+	| TInst(tclass, _) ->
+		    ctx.imports_manager#add_class(tclass)
+	| _ -> ()); (* TODO:Find the class from other types -- like TMono(t)? *)
+				
 	let id = field.cf_name in
 	let t = typeToString ctx field.cf_type pos in
 	(* let class_name = (snd ctx.class_def.cl_path) in *)
