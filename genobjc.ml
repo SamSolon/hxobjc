@@ -84,20 +84,52 @@ class importsManager =
 		| ([],"Bool") -> ();
 		| _ -> if not (List.mem class_path class_imports) then class_imports <- List.append class_imports [class_path];
 	method add_class (class_def:tclass) = 
+		print_endline("   add_class " ^ (joinClassPath class_def.cl_path "."));
 		if (Meta.has Meta.Framework class_def.cl_meta) then begin
 			let name = getFirstMetaValue Meta.Framework class_def.cl_meta in
 			this#add_framework name;
 		end else begin
 			this#add_class_path class_def.cl_module.m_path;
 		end
-	method add_abstract (a_def:tabstract) = 
-		if (Meta.has Meta.Framework a_def.a_meta) then begin
+	method add_abstract (a_def:tabstract) (pl:tparams) =
+		print_endline("   add_abstract " ^ (joinClassPath a_def.a_path "."));
+		(* Generate a reference to the underlying class instead???? *)
+		if Meta.has Meta.MultiType a_def.a_meta then begin
+			let tpath = (joinClassPath a_def.a_path "/") in 
+			let underlying = Codegen.Abstract.get_underlying_type a_def pl in
+			print_endline("Abstract underlying " ^ tpath ^ " = " ^ 
+				(match underlying with TType(tdef, tparams) -> "TType"
+					| TMono _ -> "TMono"
+					| TEnum _ -> "TEnum"
+					| TInst(tclass, tparams)  -> "TInst " ^ (joinClassPath tclass.cl_path "/")
+					| TFun _ -> "TFun"
+					| TAnon _ -> "TAnon"
+					| TDynamic _ -> "TDynamic"
+					| TLazy _ -> "TLazy"
+					| _ -> "Something else")); 
+		    (* If we have an underlying class use that *)
+		    match underlying with 
+				| TInst(tclass, tparams) -> this#add_class_path tclass.cl_path
+				| _ -> if (Meta.has Meta.Framework a_def.a_meta) then begin
+									let name = getFirstMetaValue Meta.Framework a_def.a_meta in
+									this#add_framework name;
+								end else begin
+									this#add_class_path a_def.a_module.m_path;
+								end
+(*
+		if (String.compare "Class"  (joinClassPath a_def.a_path "/") == 0) then begin
+			(* Ignore some types since they won't have anything to include? *)
+			print_endline("__________ ignore "^(joinClassPath a_def.a_path "/"));
+*)
+		end else if (Meta.has Meta.Framework a_def.a_meta) then begin
 			let name = getFirstMetaValue Meta.Framework a_def.a_meta in
 			this#add_framework name;
 		end else begin
 			this#add_class_path a_def.a_module.m_path;
 		end
+
 	method add_framework (name:string) =
+		print_endline("  add_framework " ^ name);
 		if not (List.mem name all_frameworks) then all_frameworks <- List.append all_frameworks [name];
 		if not (List.mem name class_frameworks) then class_frameworks <- List.append class_frameworks [name];
 	method add_class_import_custom (class_path:string) = class_imports_custom <- List.append class_imports_custom ["\""^class_path^"\""];
