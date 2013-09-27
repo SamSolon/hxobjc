@@ -163,10 +163,10 @@ abstract Map<K,V>(IMap<K,V> ) {
 }
 
 interface IMap<K,V> {
-	public function get(k:K):Null<V>;
-	public function set(k:K, v:V):Void;
-	public function exists(k:K):Bool;
-	public function remove(k:K):Bool;
+	public function get(key:K):Null<V>;
+	public function set(key:K, value:V):Void;
+	public function exists(key:K):Bool;
+	public function remove(key:K):Bool;
 	public function keys():Iterator<K>;
 	public function iterator():Iterator<V>;
 	public function toString():String;
