@@ -1781,15 +1781,15 @@ and generateExpression ctx e =
     List.iter ( fun (key, expr) ->
 			  (*ctx.writer#write("Field:"^dump(expr));*)
 				let t = (typeToString ctx expr.etype expr.epos) in 
-				ctx.writer#write("//Generate object decl for "^key^" "^t^" = "^(match expr.eexpr  with TFunction _ -> "Function" | _ -> "Other"));
 				ctx.writer#new_line;
+				ctx.writer#write("//Generate object decl for "^key^" "^t^" = "^(match expr.eexpr  with TFunction _ -> "Function" | _ -> "Other"));
 				
 				(* Generate a method for functions -- for now we only implement static functions that are generated as a block *)
 				match expr.eexpr with 
 				| TFunction tfunc -> 
 							let tailargs = match tfunc.tf_args with head::tail -> tail | _ -> [] in
-							let selectors = key :: List.map(fun (tvar, c) -> tvar.v_name) tailargs in
-							let selector = String.concat ":" selectors in
+							let selectors = key :: List.map(fun (tvar, c) -> tvar.v_name^":") tailargs in
+							let selector = String.concat "" selectors in
 							let mtypes = key^"_mtypes" in
 (*
 					    ctx.writer#write(t^" (^"^key^")() = "); 
@@ -1806,8 +1806,8 @@ and generateExpression ctx e =
 
 							(* Add additional types for any params *)
 							List.iter (fun(tvar, c) -> 
-								ctx.writer#write("["^mtypes^" appendString:@encode("^(typeToString ctx tvar.v_type null)^")];");
-								ctx.writer#new_line
+								ctx.writer#new_line;
+								ctx.writer#write("["^mtypes^" appendString:[NSString stringWithUTF8String:@encode("^(typeToString ctx tvar.v_type null)^")]];");
 								) tfunc.tf_args;
 
               ctx.writer#new_line;
