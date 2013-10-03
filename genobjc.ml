@@ -1035,7 +1035,9 @@ let rec generateCall ctx (func:texpr) arg_list =
 			| TLazy _ -> ctx.writer#write "TLazy";
 			| TAbstract _ -> ctx.writer#write "TAbstract";
 		); *)
+		
 		ctx.writer#write "[";
+		debug ctx "-xxx-";
 		
 		(* Check if the called function has a custom selector defined *)
 		let sel = (match func.eexpr with
@@ -1046,7 +1048,8 @@ let rec generateCall ctx (func:texpr) arg_list =
 			| _ -> "";
 		) in
 		ctx.generating_custom_selector <- (String.length sel > 0);
-		generateValue ctx func;
+		(*generateValue ctx func;*)
+		generateExpression ctx func;
 		ctx.generating_calls <- ctx.generating_calls - 1;
 		ctx.generating_custom_selector <- false;
 		
