@@ -2615,9 +2615,18 @@ let generateField ctx is_static field =
 			let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func field.cf_params pos is_static HeaderObjc in
 			h();
 			(* Generate function content if is not a header file *)
-			if not ctx.generating_header then
-				generateExpression ctx func.tf_expr
-			else
+			if not ctx.generating_header then begin
+				if Meta.has Meta.FunctionCode field.cf_meta then begin
+					match Meta.get Meta.FunctionCode field.cf_meta with	
+					|  (Meta.FunctionCode, [Ast.EConst (Ast.String contents),_],_) ->
+							print_endline("~~~~~~~~~~~~~~~~~~~~ Function code on " ^ field.cf_name ^ " = " ^ contents);
+							ctx.writer#begin_block;
+							ctx.writer#write contents;
+							ctx.writer#end_block
+					| _ -> ()
+				end else
+					generateExpression ctx func.tf_expr
+			end else
 				ctx.writer#write ";";
 		end
 	| Some { eexpr = TFunction func }, Method (MethDynamic) ->
