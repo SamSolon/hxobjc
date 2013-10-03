@@ -3510,6 +3510,13 @@ let generatePlist common_ctx file_info  =
 (* Generate the enum. ctx should be the header file *)
 let generateEnum ctx enum_def =
 	(* print_endline ("> Generating enum : "^(snd enum_def.e_path)); *)
+	PMap.iter (fun cname tenum_field ->
+		print_endline("Enum  ctor " ^ cname);
+	) enum_def.e_constrs;
+	List.iter (fun ename ->
+		print_endline("Enum  name " ^ ename);
+	) enum_def.e_names;
+		
     ctx.writer#write "typedef enum";
 	ctx.writer#begin_block;
 	ctx.writer#write (String.concat ",\n\t" enum_def.e_names);
