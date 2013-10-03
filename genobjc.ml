@@ -2242,12 +2242,27 @@ and generateValue ctx e =
 		)
 	in
 	match e.eexpr with
+	| TField(texpr, tfield_access) ->
+		(*let s_type = Type.s_type(print_context()) in
+		ctx.writer#write("\"generateValue " ^ s_expr s_type e^"\"");*)
+		ctx.writer#write("[");
+		debug ctx "-ppp-";
+		generateExpression ctx texpr;
+		ctx.writer#write(" ");
+		(match tfield_access with
+		| FInstance(_, tclass_field) -> debug ctx "-FInstance-" ; ctx.writer#write(remapKeyword tclass_field.cf_name)
+		| FStatic(_, tclass_field) -> debug ctx "-FStatic-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
+		| FAnon tclass_field -> debug ctx "-FAnon-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
+		| FDynamic(fname) -> debug ctx "-FDynamic-"; ctx.writer#write(remapKeyword fname);
+		| FClosure _ -> error "Field reference by FClosure not yet implemented" e.epos
+		|	FEnum(tenum, tenum_field) -> debug ctx "-FEnum-"; ctx.writer#write(remapKeyword tenum_field.ef_name));
+		debug ctx "-ppp-";
+		ctx.writer#write("]");
 	| TTypeExpr _
 	| TConst _
 	| TLocal _
 	| TArray _
 	| TBinop _
-	| TField _
 	| TEnumParameter _
 	| TParenthesis _
 	| TObjectDecl _
@@ -2257,6 +2272,8 @@ and generateValue ctx e =
 	| TUnop _
 	| TMeta _
 	| TFunction _ ->
+		(*let s_type = Type.s_type(print_context()) in
+		ctx.writer#write("|generateValue|" ^ (Type.s_expr_kind e));*)
 		generateExpression ctx e
 	| TCast (e1,t) ->
 		let t = typeToString ctx e.etype e.epos in
