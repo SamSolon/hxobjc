@@ -1389,14 +1389,34 @@ and generateExpression ctx e =
 			ctx.writer#write " isEqualToString:";
 			generateValueOp ctx e2;
 			ctx.writer#write "]";
-		end else if (s_op = "=") && (match e1.eexpr with TLocal tvar when (List.mem tvar ctx.uprefs) -> true | _ -> false) then begin
+		end else if (s_op = "=") (*&& (match e1.eexpr with TLocal tvar 
+		                             when ((List.mem tvar ctx.uprefs) || (Hashtbl.mem ctx.blockvars tvar.v_name )) -> true | _ -> false) *) then begin
 			match e1.eexpr with 
 			| TLocal tvar ->
 				ctx.writer#write("\n//=========== assignment of upref local\n");
-                ctx.writer#write("[self setValue:");
+				ctx.writer#write("[self setValue:");
 				generateValueOp ctx e2;
-				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]");
-			| _ -> ();
+				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
+			| TField(texpr, tfield_access) ->
+					ctx.writer#write("["); debug ctx "-yyy-";
+					generateExpression ctx texpr;
+					(match tfield_access with
+					| FInstance(tclass, tclass_field)-> 
+						(*ctx.writer#write("Assign TField FInstance Class " ^ (joinClassPath tclass.cl_path ".")  ^ " field:" ^ tclass_field.cf_name);*)
+						ctx.writer#write(" set" ^ (String.capitalize (remapKeyword tclass_field.cf_name)) ^":");
+						generateValue ctx e2;
+						ctx.writer#write("]");
+					| FStatic(tclass, tclass_field) -> ctx.writer#write("Assign TField FStatic")
+					| FAnon(tclass_field) -> ctx.writer#write("Assign TField FAnon")
+					| FDynamic(string) -> 
+							debug ctx ("--FDynamic " ^ string ^ " -");
+							ctx.writer#write(" setValue:");
+							generateValue ctx e2;
+							ctx.writer#write(" forKey:@\"" ^ string ^ "\"]")
+					| FClosure(tclass, tclass_field) -> ctx.writer#write("Assign TField FClosure")
+					| FEnum(tenum, tenum_field) -> ctx.writer#write("Assign TField FEnum"));
+			| _ -> let s_type = Type.s_type(print_context()) in 
+			       ctx.writer#write("Some other lvalue:" ^ (Type.s_expr_kind e1) ^ ":" ^ (Type.s_expr s_type e1) ^ " = " ^ (Type.s_expr s_type e2));
 		end else begin
 			ctx.generating_left_side_of_operator <- true;
 			generateValueOp ctx e1;
