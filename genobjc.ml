@@ -1516,11 +1516,14 @@ and generateExpression ctx e =
 				(* TODO: generate functions with arguments as selector. currently does not support arguments *)
 				ctx.writer#write (remapKeyword name);
 			end else begin
-				if ctx.generating_calls = 0 then ctx.writer#write "[";
+				(*if ctx.generating_calls = 0 then ctx.writer#write "[";*)
 				generateValue ctx e;
 				(* generateFieldAccess ctx e.etype name; *)
-				ctx.writer#write (" "^(remapKeyword name));
-				if ctx.generating_calls = 0 then ctx.writer#write "]";
+				ctx.writer#write(" ");
+				(*(*if ctx.generating_calls = 0 then*) ctx.writer#write("valueForKey:@\"") (*else ctx.writer#write(" ")*);*)
+				ctx.writer#write (remapKeyword name);
+				(*ctx.writer#write ("\"");*)
+				(*if ctx.generating_calls = 0 then ctx.writer#write "]";*)
 			end
 		| FClosure (_,fa2) -> (* ctx.writer#write "-FClosure-"; *)
 			
