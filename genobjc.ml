@@ -331,6 +331,7 @@ type context = {
 	mutable gen_uid : int;
 	mutable local_types : t list;
 	mutable uprefs : tvar list;
+	mutable blockvars : (string, tvar) Hashtbl.t;
 }
 let newContext common_ctx writer imports_manager file_info = {
 	com = common_ctx;
@@ -370,6 +371,7 @@ let newContext common_ctx writer imports_manager file_info = {
 	gen_uid = 0;
 	local_types = [];
 	uprefs = [];
+	blockvars = Hashtbl.create 0;
 }
 type module_context = {
 	mutable module_path_m : path;
@@ -1216,10 +1218,10 @@ and generateExpression ctx e =
 		| TLazy _ -> ctx.writer#write ">TLazy<";
 		| TAbstract _ -> ctx.writer#write ">TAbstract<"); *)
 		
-		if (List.mem v ctx.uprefs) then begin (* local instance var *)
-        ctx.writer#write("[self valueForKey:@\""^v.v_name^"\"]");
-	  end else begin
-		    ctx.writer#write (remapKeyword v.v_name);
+		if ((List.mem v ctx.uprefs) || (Hashtbl.mem ctx.blockvars v.v_name)) then begin (* local instance var *)
+			ctx.writer#write("[self valueForKey:@\""^(remapKeyword v.v_name)^"\"]");
+		end else begin
+			ctx.writer#write (remapKeyword v.v_name);
 		end
 		
 		(* ctx.writer#write "-e-"; *)
