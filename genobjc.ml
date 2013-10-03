@@ -2366,7 +2366,7 @@ let generateProperty ctx field pos is_static =
 	else begin
 		if is_static then begin
 			let gen_init_value () = match field.cf_expr with
-			| None -> ()
+			| None -> ctx.writer#write("nil") (*TODO Proper default value *)
 			| Some e -> generateValue ctx e in
 			ctx.writer#write ("static "^t^(addPointerIfNeeded t)^" "^id^";
 + ("^t^(addPointerIfNeeded t)^") "^id^" {
