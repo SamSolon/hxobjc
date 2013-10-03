@@ -1832,18 +1832,24 @@ and generateExpression ctx e =
 								ctx.writer#write("["^mtypes^" appendString:[NSString stringWithUTF8String:@encode("^(typeToString ctx tvar.v_type null)^")]];");
 								) tfunc.tf_args;
 
-              ctx.writer#new_line;
+ 							ctx.writer#new_line;
 							ctx.writer#write("class_addMethod(dynclass, @selector("^selector^"),"
       													^"imp_implementationWithBlock(");
 							generateValue ctx expr;
-              ctx.writer#new_line;
+							ctx.writer#new_line;
 							ctx.writer#write("),["^mtypes^" UTF8String]);");
 							
-				| _ -> 
-					    let ivartype = t ^ (if ctx.require_pointer then "*" else "") in 
-              ctx.writer#new_line;
-							ctx.writer#write("//!!!! Generate instance variable "^key^" "^t); ctx.writer#new_line;
+				| TLocal tvar ->
+							let s_type = Type.s_type(print_context()) in
+							print_endline("***********Process block tlocal " ^ tvar.v_name ^ " for " ^ key ^ (Type.s_expr s_type expr));
+							let t = remapKeyword (typeToString ctx tvar.v_type null) in
+							let ivartype = t ^ (if ctx.require_pointer && t != "id" then "*" else "") in 
+							ctx.writer#new_line;
+							ctx.writer#write("//!!!! Generate instance variable "^key^" "^t);
+ 							ctx.writer#new_line;
 							ctx.writer#write("class_addIvar(dynclass, \""^key^"\",sizeof("^ivartype^"), log2(sizeof("^ivartype^")),@encode("^ivartype^"));");
+							Hashtbl.add ctx.blockvars key tvar
+				| _ -> error ( "!!!! Invalid field in anonymous block" ^ (Type.s_expr_kind expr)) expr.epos
 (*
 														ctx.writer#new_line;
 							ctx.writer#write("class_addMethod(dynclass, @selector("^key^"),"
@@ -1856,33 +1862,34 @@ and generateExpression ctx e =
         (* Cut and paste from above (boo, hiss) *)
 				let key = tvar.v_name in
 				let t = (typeToString ctx tvar.v_type null) in
-	      let ivartype = t ^ (if ctx.require_pointer && t != "id" then "*" else "") in 
-        ctx.writer#new_line;
-				ctx.writer#write("//!!!! Generate upref instance variable "^key^" "^t);
-        ctx.writer#new_line;
-        ctx.writer#write("class_addIvar(dynclass, \""^key^"\",sizeof("^ivartype^"), log2(sizeof("^ivartype^")),@encode("^ivartype^"));");
+		let ivartype = t ^ (if ctx.require_pointer && t != "id" then "*" else "") in 
+		ctx.writer#new_line;
+				ctx.writer#write("//!!!! Generate upref/instance variable "^key^" "^t);
+		ctx.writer#new_line;
+		ctx.writer#write("class_addIvar(dynclass, \""^key^"\",sizeof("^ivartype^"), log2(sizeof("^ivartype^")),@encode("^ivartype^"));");
 		) ctx.uprefs;
 			
-    (* Instantiate an instance of our dynamic class and return it *)
-    ctx.writer#new_line;
+		(* Instantiate an instance of our dynamic class and return it *)
+		ctx.writer#new_line;
 		ctx.writer#write("id dyninstance = [[dynclass alloc] init];");
 		
 		(* Initialize any upref instance variables *)
 		List.iter (fun (tvar) ->
-      ctx.writer#new_line;
+		ctx.writer#new_line;
 (*
 						ctx.writer#write("[dyninstance set"^(String.capitalize tvar.v_name)^":"^tvar.v_name^"];");
 *)
-      ctx.writer#write("[dyninstance setValue:"^tvar.v_name^" forKey:@\""^tvar.v_name^"\"];");
+		ctx.writer#write("[dyninstance setValue:"^tvar.v_name^" forKey:@\""^tvar.v_name^"\"];");
 	  ) ctx.uprefs;
 		
 		ctx.uprefs <- [];
+		ctx.blockvars <- Hashtbl.create 0;
 		
 		(* Return the new object *)
-    ctx.writer#new_line;
+		ctx.writer#new_line;
 		ctx.writer#write("return dyninstance;");
 		
-	  ctx.writer#new_line;
+		ctx.writer#new_line;
 		ctx.writer#end_block;
 		ctx.writer#write("();");
 		
