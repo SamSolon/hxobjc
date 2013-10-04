@@ -1221,10 +1221,18 @@ and generateExpression ctx e =
 		| TLazy _ -> ctx.writer#write ">TLazy<";
 		| TAbstract _ -> ctx.writer#write ">TAbstract<"); *)
 		
+		let s_name = remapKeyword v.v_name in
+		let stype = typeToString ctx (follow v.v_type) null in
+		let s_value = 
+				match stype with 
+				| "int" when ctx.require_object -> 
+					"[NSNumber numberWithInt:" ^ s_name ^ "]"
+				| _ -> s_name in
+		debug ctx (stype ^ ">");
 		if ((List.mem v ctx.uprefs) || (Hashtbl.mem ctx.blockvars v.v_name)) then begin (* local instance var *)
-			ctx.writer#write("[self valueForKey:@\""^(remapKeyword v.v_name)^"\"]");
+			ctx.writer#write("[self valueForKey:@\""^ s_value ^"\"]");
 		end else begin
-			ctx.writer#write (remapKeyword v.v_name);
+			ctx.writer#write (s_value);
 		end
 		
 		(* ctx.writer#write "-e-"; *)
@@ -1399,12 +1407,22 @@ and generateExpression ctx e =
 					debug ctx ("-OpAssignOp:"^(Ast.s_binop asop)^"-");
 					generateValue ctx e1;
 					ctx.writer#write(Ast.s_binop asop);
-					generateExpression ctx e2
+					ctx.require_object <- true;
+					generateExpression ctx e2;
+					ctx.require_object <- false
 				| _ -> generateExpression ctx e2 in
 			match e1.eexpr with 	
 			| TLocal tvar ->
 				ctx.writer#write("[self setValue:");
-				makeValue op e1 e2;
+				let s_e2type = (typeToString ctx (follow e2.etype) e2.epos) in
+				debug ctx("=== " ^ s_e2type ^ ">");
+				(match s_e2type with 
+				| "int" -> 
+					ctx.writer#write("[NSNumber numberWithInt:");
+					makeValue op e1 e2;
+					ctx.writer#write("]");
+				| _ -> makeValue op e1 e2); 
+				
 				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
