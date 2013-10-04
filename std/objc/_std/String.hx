@@ -36,7 +36,7 @@
 	/**
 		The number of characters in [this] String.
 	**/
-	public var length(default,null) : Int;
+	@:nativeImpl public var length(default,null) : Int;
 
 	/**
 		Creates a copy from a given String.
