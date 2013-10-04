@@ -2691,10 +2691,11 @@ let generateField ctx is_static field =
 		ctx.generating_objc_block <- false;
 	| _ ->
 		let is_getset = (match field.cf_kind with Var { v_read = AccCall _ } | Var { v_write = AccCall _ } -> true | _ -> false) in
+		let is_not_native = not(Meta.has Meta.NativeImpl field.cf_meta) in
 		match follow field.cf_type with
 			| TFun (args,r) -> ()
-			| _ when is_getset -> if ctx.generating_header then generateProperty ctx field pos is_static
-			| _ -> generateProperty ctx field pos is_static
+			| _ when is_getset -> if ctx.generating_header && is_not_native then generateProperty ctx field pos is_static
+			| _ -> if is_not_native then generateProperty ctx field pos is_static
 ;;
 
 let rec defineGetSet ctx is_static c =

@@ -135,6 +135,7 @@ module Meta = struct
 		| GetterBody
 		| Import
 		| Framework
+		| NativeImpl
 		| Selector
 		| Weak
 		| Last
