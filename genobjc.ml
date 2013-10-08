@@ -1486,15 +1486,22 @@ and generateExpression ctx e =
 		(match fa with
 		| FInstance (tc,tcf) -> (* ctx.writer#write ("-FInstance-"); *)(* ^(remapKeyword (field_name fa))); *)
 			(* if ctx.generating_calls = 0 then ctx.generating_property_access <- true; *)
-			generateValue ctx e;
-			let f_prefix = (match tcf.cf_type with
-				| TFun _ -> if ctx.generating_left_side_of_operator && not ctx.evaluating_condition then "hx_dyn_" else "";
-				| _ -> "";
-			) in
-			let fan = if (ctx.generating_self_access && ctx.generating_calls>0 && ctx.generating_fields>=2) then "." 
-			else if (not ctx.generating_self_access && ctx.generating_calls>0) then " "
-			else if (ctx.generating_self_access && ctx.generating_calls>0) then " " else "." in
-			ctx.writer#write (fan^(if ctx.generating_custom_selector then "" else f_prefix^(remapKeyword (field_name fa))));
+			if (is_message_target(fa)) then begin
+				ctx.writer#write("[");
+				generateExpression ctx e;
+				ctx.writer#write(" " ^ (remapKeyword tcf.cf_name));
+				ctx.writer#write("]")
+			end else begin
+				generateValue ctx e;
+				let f_prefix = (match tcf.cf_type with
+					| TFun _ -> if ctx.generating_left_side_of_operator && not ctx.evaluating_condition then "hx_dyn_" else "";
+					| _ -> "";
+				) in
+				let fan = if (ctx.generating_self_access && ctx.generating_calls>0 && ctx.generating_fields>=2) then "." 
+				else if (not ctx.generating_self_access && ctx.generating_calls>0) then " "
+				else if (ctx.generating_self_access && ctx.generating_calls>0) then " " else "." in
+				ctx.writer#write (fan^(if ctx.generating_custom_selector then "" else f_prefix^(remapKeyword (field_name fa))));
+			end;
 			ctx.generating_property_access <- false;
 			
 		| FStatic (cls, cls_f) -> (* ctx.writer#write "-FStatic-"; *)
@@ -2286,11 +2293,11 @@ and generateValue ctx e =
 		)
 	in
 	match e.eexpr with
-	| TField(texpr, tfield_access) ->
+	| TField(texpr, tfield_access) when is_message_target tfield_access ->
 		(*let s_type = Type.s_type(print_context()) in
 		ctx.writer#write("\"generateValue " ^ s_expr s_type e^"\"");*)
 		ctx.writer#write("[");
-		debug ctx "-ppp-";
+		debug ctx ("-ppp-" ^ (typeToString ctx (follow e.etype) texpr.epos) ^ ">");
 		generateExpression ctx texpr;
 		ctx.writer#write(" ");
 		(match tfield_access with
@@ -2307,6 +2314,7 @@ and generateValue ctx e =
 	| TLocal _
 	| TArray _
 	| TBinop _
+	| TField _
 	| TEnumParameter _
 	| TParenthesis _
 	| TObjectDecl _
