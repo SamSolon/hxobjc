@@ -1050,8 +1050,6 @@ let rec generateCall ctx (func:texpr) arg_list =
 			| TAbstract _ -> ctx.writer#write "TAbstract";
 		); *)
 		
-		ctx.writer#write "[";
-		debug ctx "-xxx-";
 		
 		(* Check if the called function has a custom selector defined *)
 		let sel = (match func.eexpr with
@@ -1062,12 +1060,37 @@ let rec generateCall ctx (func:texpr) arg_list =
 			| _ -> "";
 		) in
 		ctx.generating_custom_selector <- (String.length sel > 0);
-		(*generateValue ctx func;*)
-		generateExpression ctx func;
-		ctx.generating_calls <- ctx.generating_calls - 1;
-		ctx.generating_custom_selector <- false;
-		
-		if List.length arg_list > 0 then begin
+		let generating_with_args = List.length arg_list > 0 in
+		if (generating_with_args) then begin
+			ctx.writer#write("[");
+			debug ctx "-xxx";
+			match func.eexpr with
+			| TField(texpr, tfield_access) ->
+(*
+				let s_type = Type.s_type(print_context()) in
+				ctx.writer#write("|Call TField " ^ (s_expr s_type texpr) 
+				                 ^ " name:" ^ (Type.field_name tfield_access) 
+												 ^ " sel: '" ^ sel ^ "'"
+												 ^" args:");
+				List.iter (fun(arg) -> ctx.writer#write("(" ^ (s_expr s_type arg) ^ ")")) arg_list;
+				ctx.writer#write("|");
+*)
+				(* Only generate the receiver -- we'll handle the selector/args below *)
+				generateExpression ctx texpr;
+				
+				(* The first selector isn't generated since it's the name so we just write it out here*)
+				ctx.writer#write(" " ^ Type.field_name tfield_access);
+			
+			| TLocal tvar ->
+				ctx.writer#write(tvar.v_name);
+			
+			| _ ->
+				 print_endline("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func));
+				 error ("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func)) func.epos;
+		end else
+			generateValue ctx func;
+
+		if generating_with_args then begin
 			let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 			let sel_arr = Array.of_list sel_list in
 			let args_array_e = Array.of_list arg_list in
@@ -1082,8 +1105,12 @@ let rec generateCall ctx (func:texpr) arg_list =
 						(* ctx.generating_method_argument <- true; *)
 						if Array.length sel_arr > 0 then
 							ctx.writer#write (" "^sel_arr.(!index)^":")
-						else
-							ctx.writer#write (if !index = 0 then ":" else (" "^(remapKeyword name)^":"));
+						(* This is now handled above with the single arg (which maybe should be no selector) rule above *)
+						(*else if (String.length name > 0) then ctx.writer#write ("~"^(remapKeyword name)^":")*)
+						else begin
+							if !index > 0 then ctx.writer#write(" " ^ name);
+							ctx.writer#write(":")
+					  end;
 						(* TODO: inspect the bug, why is there a different number of arguments. In StringBuf *)
 						if !index >= (List.length arg_list) then
 							ctx.writer#write "nil"
@@ -1107,8 +1134,9 @@ let rec generateCall ctx (func:texpr) arg_list =
 				| TLazy f -> ctx.writer#write "-TLazy call-"
 			) in
 			gen func.etype;
-		end;
-		ctx.writer#write "]";
+			debug ctx "-xxx-";
+			ctx.writer#write "]";
+		end
 	end
 	
 and generateValueOp ctx e =
