@@ -569,6 +569,20 @@ let addPointerIfNeeded t =
 	if (isPointer t) then "*" else ""
 ;;
 
+let is_message_target tfield_access =
+	(* Assume anything that isn't a struct can be a message target *) 
+	let is_struct meta = Meta.has Meta.Struct meta in 
+	match tfield_access with
+	| FInstance(tc, _)
+	| FStatic(tc, _) 
+	| FClosure(Some tc, _) -> not(is_struct tc.cl_meta)
+	| FAnon tcf -> not(is_struct tcf.cf_meta)
+	| FDynamic _ -> true (* hopefully *)
+	| FEnum(_) -> false (* don't really know yet*)
+	| _ -> false;
+;;
+
+
 (* Generating correct type *)
 let remapHaxeTypeToObjc ctx is_static path pos =
 	match path with
