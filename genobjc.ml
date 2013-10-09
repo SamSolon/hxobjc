@@ -1452,7 +1452,7 @@ and generateExpression ctx e =
 					ctx.require_object <- true;
 					generateExpression ctx e2;
 					ctx.require_object <- false
-				| _ -> generateExpression ctx e2 in
+				| _ -> generateValue ctx e2 in
 			match e1.eexpr with 	
 			| TLocal tvar ->
 				ctx.writer#write("[self setValue:");
