@@ -2350,7 +2350,7 @@ and generateValue ctx e =
 		| FInstance(_, tclass_field) -> debug ctx "-FInstance-" ; ctx.writer#write(remapKeyword tclass_field.cf_name)
 		| FStatic(_, tclass_field) -> debug ctx "-FStatic-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
 		| FAnon tclass_field -> debug ctx "-FAnon-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
-		| FDynamic(fname) -> debug ctx "-FDynamic-"; ctx.writer#write(remapKeyword fname);
+		| FDynamic(fname) -> debug ctx "-FDynamic-"; ctx.writer#write("valueForKey:@\"" ^ remapKeyword fname ^ "\"");
 		| FClosure _ -> error "Field reference by FClosure not yet implemented" e.epos
 		|	FEnum(tenum, tenum_field) -> debug ctx "-FEnum-"; ctx.writer#write(remapKeyword tenum_field.ef_name));
 		debug ctx "-ppp-";
