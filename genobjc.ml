@@ -1076,7 +1076,7 @@ let rec generateCall ctx (func:texpr) arg_list =
 				ctx.writer#write("|");
 *)
 				(* Only generate the receiver -- we'll handle the selector/args below *)
-				generateExpression ctx texpr;
+				generateValue ctx texpr;
 				
 				(* The first selector isn't generated since it's the name so we just write it out here*)
 				ctx.writer#write(" " ^ Type.field_name tfield_access);
