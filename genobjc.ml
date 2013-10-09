@@ -2139,12 +2139,30 @@ and generateExpression ctx e =
 				ctx.writer#terminate_line;
 				ctx.writer#end_block;
 		);
-	| TUnop (op,Ast.Prefix,e) ->
-		ctx.writer#write (Ast.s_unop op);
+	| TUnop (Ast.Increment as op,unop_flag,e)
+	| TUnop (Ast.Decrement as op,unop_flag, e) ->
+		(* TODO: Generate dot notataion and let the compiler do the work if we can*)
+		let opdo = if (op == Ast.Increment) then Ast.OpAdd else Ast.OpSub in
+		let opundo = if (op == Ast.Increment) then Ast.OpSub else Ast.OpAdd in
+		let oneexpr = mk (TConst (TInt(Int32.of_int 1))) ctx.com.basic.tint e.epos in
+		let doexp = mk (TBinop(opdo, e, oneexpr)) e.etype e.epos in
+		let undoexp = mk (TBinop(opundo, e, oneexpr)) e.etype e.epos in 
+		let assignexp = mk (TBinop(Ast.OpAssign, e, doexp)) e.etype e.epos in
+		if (unop_flag == Ast.Prefix) 
+		then generateExpression ctx assignexp
+		else begin (* Postfix *)
+			(* This is really ugly but it should work for all types*)
+			(* Generate the increment assign and use the comma operator to undo the operation*)
+			(*  for the value of the expression*) 
+			ctx.writer#write("(");
+			generateExpression ctx assignexp;
+			ctx.writer#write(",");
+			generateExpression ctx undoexp;	
+			ctx.writer#write(")");
+		end
+	| TUnop(op, flag, e) ->
+		ctx.writer#write(s_unop op);
 		generateValue ctx e
-	| TUnop (op,Ast.Postfix,e) ->
-		generateValue ctx e;
-		ctx.writer#write (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		(* This is the redefinition of a for loop *)
 		let handleBreak = handleBreak ctx e in
