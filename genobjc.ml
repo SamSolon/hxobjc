@@ -1478,7 +1478,7 @@ and generateExpression ctx e =
 					| FStatic(tclass, tclass_field) -> ctx.writer#write("Assign TField FStatic")
 					| FAnon(tclass_field) -> ctx.writer#write("Assign TField FAnon")
 					| FDynamic(string) -> 
-							debug ctx ("--FDynamic " ^ string ^ " -");
+							debug ctx ("--FDynamic1 " ^ string ^ " -");
 							ctx.writer#write(" setValue:");
 							makeValue op e1 e2; (*generateValue ctx e2;*)
 							ctx.writer#write(" forKey:@\"" ^ string ^ "\"]")
@@ -1586,20 +1586,20 @@ and generateExpression ctx e =
 			(* TODO: distinguish this two kind of accesses *)
 			generateValue ctx e;
 			ctx.writer#write (" " ^ (field_name fa))
-		| FDynamic name -> debug ctx "-FDynamic-";
+		| FDynamic name -> debug ctx "-FDynamic2-";
 			(* This is called by untyped *)
 			if ctx.generating_selector then begin
 				(* TODO: generate functions with arguments as selector. currently does not support arguments *)
 				ctx.writer#write (remapKeyword name);
 			end else begin
-				(*if ctx.generating_calls = 0 then ctx.writer#write "[";*)
+				ctx.writer#write "[";
 				generateValue ctx e;
 				(* generateFieldAccess ctx e.etype name; *)
-				ctx.writer#write(" ");
+				ctx.writer#write(" valueForKey:@\"");
 				(*(*if ctx.generating_calls = 0 then*) ctx.writer#write("valueForKey:@\"") (*else ctx.writer#write(" ")*);*)
 				ctx.writer#write (remapKeyword name);
 				(*ctx.writer#write ("\"");*)
-				(*if ctx.generating_calls = 0 then ctx.writer#write "]";*)
+				ctx.writer#write("\"]");
 			end
 		| FClosure (_,fa2) -> (* ctx.writer#write "-FClosure-"; *)
 			
@@ -2358,7 +2358,7 @@ and generateValue ctx e =
 		| FInstance(_, tclass_field) -> debug ctx "-FInstance-" ; ctx.writer#write(remapKeyword tclass_field.cf_name)
 		| FStatic(_, tclass_field) -> debug ctx "-FStatic-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
 		| FAnon tclass_field -> debug ctx "-FAnon-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
-		| FDynamic(fname) -> debug ctx "-FDynamic-"; ctx.writer#write("valueForKey:@\"" ^ remapKeyword fname ^ "\"");
+		| FDynamic(fname) -> debug ctx "-FDynamic3-"; ctx.writer#write("valueForKey:@\"" ^ remapKeyword fname ^ "\"");
 		| FClosure _ -> error "Field reference by FClosure not yet implemented" e.epos
 		|	FEnum(tenum, tenum_field) -> debug ctx "-FEnum-"; ctx.writer#write(remapKeyword tenum_field.ef_name));
 		debug ctx "-ppp-";
