@@ -842,8 +842,8 @@ let generateConstant ctx p = function
 			ctx.writer#write f
 	| TString s -> ctx.writer#write (Printf.sprintf "@\"%s\"" (Ast.s_escape s))
 	| TBool b -> ctx.writer#write (if b then "YES" else "NO")
-(*	| TNull -> ctx.writer#write (if ctx.require_object then "[NSNull null]" else "nil")*)
-	| TNull -> ctx.writer#write (if ctx.require_pointer then "[NSNull null]" else "nil")
+	| TNull -> ctx.writer#write (if ctx.require_object then "[NSNull null]" else "nil")
+(*	| TNull -> ctx.writer#write (if ctx.require_pointer then "[NSNull null]" else "nil")*)
 	| TThis -> ctx.writer#write "self"; ctx.generating_self_access <- true 
 	| TSuper -> ctx.writer#write "super"
 ;;
