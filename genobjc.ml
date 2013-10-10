@@ -2052,6 +2052,14 @@ and generateExpression ctx e =
 				ctx.writer#write ("NSMakeRange(");
 				concat ctx "," (generateValue ctx) el;
 				ctx.writer#write ")"
+			| ([],"String") ->
+				ctx.writer#write("[[NSString alloc]");
+				if (List.length el > 0) then begin 
+					ctx.writer#write(" initWithString:");
+					generateValue ctx (List.hd el);
+				end else 
+					ctx.writer#write(" init");
+				ctx.writer#write("]");
 			| ([],"SEL") ->
 				ctx.writer#write "@selector(";
 				ctx.generating_selector <- true;
