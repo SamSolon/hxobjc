@@ -582,7 +582,10 @@ let is_message_target tfield_access =
 	| _ -> false;
 ;;
 
-
+(* Should we access tvar by messaging*)
+let isMessageAccess ctx tvar =
+	(List.mem tvar ctx.uprefs) || (Hashtbl.mem ctx.blockvars tvar.v_name)
+;;
 (* Generating correct type *)
 let remapHaxeTypeToObjc ctx is_static path pos =
 	match path with
@@ -1271,7 +1274,7 @@ and generateExpression ctx e =
 					"[NSNumber numberWithInt:" ^ s_name ^ "]"
 				| _ -> s_name in
 		debug ctx (stype ^ ">");
-		if ((List.mem v ctx.uprefs) || (Hashtbl.mem ctx.blockvars v.v_name)) then begin (* local instance var *)
+		if (isMessageAccess ctx v) then begin (* local instance var *)
 			ctx.writer#write("[self valueForKey:@\""^ s_value ^"\"]");
 		end else begin
 			ctx.writer#write (s_value);
@@ -1454,7 +1457,7 @@ and generateExpression ctx e =
 					ctx.require_object <- false
 				| _ -> generateValue ctx e2 in
 			match e1.eexpr with 	
-			| TLocal tvar ->
+			| TLocal tvar when isMessageAccess ctx tvar ->
 				ctx.writer#write("[self setValue:");
 				let s_e2type = (typeToString ctx (follow e2.etype) e2.epos) in
 				debug ctx("=== " ^ s_e2type ^ ">");
@@ -1466,6 +1469,9 @@ and generateExpression ctx e =
 				| _ -> makeValue op e1 e2); 
 				
 				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
+			| TLocal tvar ->
+				ctx.writer#write(tvar.v_name ^ " =");
+				generateValue ctx e2
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
 					generateExpression ctx texpr;
