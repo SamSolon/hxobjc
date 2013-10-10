@@ -561,7 +561,8 @@ let rec isArray e =
 (* 'id' is a pointer but does not need to specify it *)
 let isPointer t =
 	match t with
-	| "void" | "id" | "BOOL" | "int" | "uint" | "float" | "CGRect" | "CGPoint" | "CGSize" | "SEL" | "CGImageRef" -> false
+	| "void" | "id" | "BOOL" | "int" | "uint" | "float" | "CGRect" | "CGPoint" | "CGSize" | "SEL" | "CGImageRef" 
+	| "NSRange"	-> false
 	| _ -> true
 	(* TODO: enum is not pointer *)
 ;;
