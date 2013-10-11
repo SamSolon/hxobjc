@@ -1413,7 +1413,7 @@ and generateExpression ctx e =
 			| _ -> ()
 	  end;
 		
-    if (s_op="+" or s_op="+=") && (isString ctx e1 or isString ctx e2) then begin
+    if (s_op="+") && (isString ctx e1 || isString ctx e2) then begin
 			ctx.generating_string_append <- ctx.generating_string_append + 1;
 			(match s_op with
 				| "+" ->
@@ -1449,13 +1449,9 @@ and generateExpression ctx e =
 		end else if (s_op = "=" || match op with OpAssignOp _ ->true | _ -> false) then begin
 			let makeValue op exp1 exp2 = 
 				match op with 
-				| OpAssignOp asop ->
-					debug ctx ("-OpAssignOp:"^(Ast.s_binop asop)^"-");
-					generateValue ctx e1;
-					ctx.writer#write(Ast.s_binop asop);
-					ctx.require_object <- true;
-					generateExpression ctx e2;
-					ctx.require_object <- false
+				| OpAssignOp binop ->
+					debug ctx ("-OpAssignOp:"^(Ast.s_binop binop)^"-");
+					generateValue ctx (mk (TBinop(binop, exp1, exp2)) exp1.etype exp1.epos)
 				| _ -> generateValue ctx e2 in
 			match e1.eexpr with 	
 			| TLocal tvar when isMessageAccess ctx tvar ->
@@ -1471,7 +1467,7 @@ and generateExpression ctx e =
 				
 				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
 			| TLocal tvar ->
-				ctx.writer#write(tvar.v_name ^ " =");
+				ctx.writer#write(tvar.v_name ^ " = ");
 				generateValue ctx e2
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
