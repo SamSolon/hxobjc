@@ -2416,18 +2416,24 @@ and generateValue ctx e =
 		generateValue ctx e
 	| TBlock el ->
 		let v = value true in
+		ctx.writer#begin_block;
 		let rec loop = function
 			| [] ->
 				ctx.writer#write "return nil";
+				ctx.writer#terminate_line
 			| [e] ->
-				generateExpression ctx (assign e);
+				ctx.writer#write("return ");
+				generateExpression ctx e;
+				ctx.writer#terminate_line;
 			| e :: l ->
 				generateExpression ctx e;
-				ctx.writer#new_line;
+				ctx.writer#terminate_line;
 				loop l
 		in
 		loop el;
-		v();
+		ctx.writer#end_block;
+		ctx.writer#write("()");
+				(*v();*)
 	| TIf (cond,e,eo) ->
 		ctx.writer#write "(";
 		generateValue ctx cond;
