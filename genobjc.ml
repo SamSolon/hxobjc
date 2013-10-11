@@ -2330,7 +2330,7 @@ and generateValue ctx e =
 		let r = alloc_var (genLocal ctx "__r__") e.etype in
 		ctx.in_value <- Some r;
 		if ctx.in_static then
-			ctx.writer#write (Printf.sprintf "^(%s%s)" t (addPointerIfNeeded t))
+			ctx.writer#write (Printf.sprintf "(%s%s)^()" t (addPointerIfNeeded t))
 		else
 			ctx.writer#write (Printf.sprintf "((%s)self.%s " t r.v_name);
 		(fun() ->
@@ -2345,6 +2345,7 @@ and generateValue ctx e =
 						
 				ctx.writer#new_line;
 				ctx.writer#write "}";
+
 			end;
 			ctx.in_value <- old;
 			if ctx.in_static then
