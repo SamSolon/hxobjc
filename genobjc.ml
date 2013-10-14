@@ -410,6 +410,17 @@ let isSpecialCompare e1 e2 =
 	| _ -> None
 ;;
 
+let rec s_t = function
+	| TMono t -> "TMono(" ^ (match !t with Some t -> (s_t t) | _ -> "null") ^ ")"
+	| TEnum _ -> "TEnum"
+	| TInst(tclass, tparams) -> "TInst(" ^ (joinClassPath tclass.cl_path ".") ^ "[" ^ (String.concat "%" (List.map (fun t -> s_t t) tparams)) ^ "])"
+	| TType _ -> "TType"
+	| TFun _ -> "TFun"
+	| TAnon _ -> "TAnon"
+	| TDynamic _ -> "TDynamic"
+	| TLazy _ -> "TLazy"
+	| TAbstract (tabstract, _) -> "TAbstract(" ^ (joinClassPath tabstract.a_path ".") ^ ")"
+;;
 (*
 let rec IsString ctx e =
 	(* TODO: left side of the binop is never discovered as being string *)
