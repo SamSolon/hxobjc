@@ -375,7 +375,7 @@ class StringTools {
 		return (untyped s).charCodeAt(index);
 			#end
 		#elseif objc
-		return untyped s.characterAtIndex(index);
+		return untyped s.charCodeAt(index);
 		#else
 		return s.cca(index);
 		#end
