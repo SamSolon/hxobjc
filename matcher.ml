@@ -336,7 +336,7 @@ let to_pattern ctx e t =
 					error (error_msg (Unify l)) p
 				end;
 				mk_con_pat (CEnum(en,ef)) [] t p
-			| _ -> error "Constant expression expected" p)
+			| _ -> error ("Constant expression expected instead of " ^ (s_expr_kind e) ^ ":" ^ (Type.s_expr (Type.s_type(print_context()))  e))  p)
 		| ECall(ec,el) ->
 			let ec = type_expr ctx ec (WithType t) in
 			(match follow ec.etype with
