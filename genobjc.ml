@@ -410,7 +410,8 @@ let isSpecialCompare e1 e2 =
 	| _ -> None
 ;;
 
-let rec isString ctx e =
+(*
+let rec IsString ctx e =
 	(* TODO: left side of the binop is never discovered as being string *)
 	(* ctx.writer#write ("\"-CHECK ISSTRING-\""); *)
 	let isStringPath path = (match path with
@@ -473,7 +474,7 @@ let rec isString ctx e =
 						| TInst (tc, tp) -> (* ctx.writer#write (snd tc.cl_path);false; *)
 							if (snd tc.cl_path) = "String" then true
 							else false
-						| TType _ -> ctx.writer#write "CASTTType";false;
+						| TType _ -> ctx.writer#write "CASTTType1";false;
 						| TFun (_,t) -> (* ctx.writer#write "CASTTFun"; *)
 							(* ctx.writer#write ("TFun"^(snd tc.cl_path)); *)
 							(* Analize the return type of the function *)
@@ -552,6 +553,7 @@ let rec isString ctx e =
 		)
 	| _ -> false)
 ;;
+*)
 let rec isArray e =
 	(match e.eexpr with
 	| TArray (e1,e2) -> true
@@ -754,6 +756,14 @@ let rec typeToString ctx t p =
 			else typeToString ctx (apply_params t.t_types args t.t_type) p)
 	| TLazy f ->
 		typeToString ctx ((!f)()) p
+;;
+
+let isString ctx e = 
+	let hstr =  (remapHaxeTypeToObjc ctx false ([],"String") e.epos) in 
+	let tstr = typeToString ctx e.etype e.epos in
+	let is = tstr = hstr in
+	debug ctx ("-isString:" ^ (s_t e.etype) ^ " '" ^ tstr ^ "' = '" ^ hstr ^ "' : " ^ (string_of_bool is) ^ "-");
+	is
 ;;
 
 let rec iterSwitchBreak in_switch e =
