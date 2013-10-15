@@ -1415,7 +1415,7 @@ and generateExpression ctx e =
 		(* if isString ctx e2 then ctx.writer#write ("\"-isString2-\""); *)
 		
 		let s_type = s_type(print_context()) in
-    if (s_op="+" or s_op="+=") then begin
+    if (s_op="+" || s_op="+=") then begin
 			match e2.eexpr with 
 			| TLocal v -> 
 				let et2 = match v.v_type with 
@@ -1434,7 +1434,7 @@ and generateExpression ctx e =
 			| _ -> ()
 	  end;
 		
-    if (s_op="+") && (isString ctx e1 || isString ctx e2) then begin
+    if (s_op="+" || s_op="+=") && (isString ctx e1 || isString ctx e2) then begin
 			ctx.generating_string_append <- ctx.generating_string_append + 1;
 			(match s_op with
 				| "+" ->
