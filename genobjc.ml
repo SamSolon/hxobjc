@@ -75,6 +75,8 @@ class importsManager =
 	val mutable class_frameworks : string list = []
 	val mutable class_imports : path list = []
 	val mutable class_imports_custom : string list = []
+	val mutable class_forwards : string list  =  []
+	val mutable my_path : path = ([],"")
 	method add_class_path (class_path:path) = match class_path with
 		| ([],"StdTypes")
 		| ([],"Int")
@@ -89,6 +91,14 @@ class importsManager =
 			let name = getFirstMetaValue Meta.Framework class_def.cl_meta in
 			this#add_framework name;
 		end else begin
+			(* Check for include cycle so we can generate a forward reference *)
+			(* Only checks one level deep *)
+			PMap.iter (fun _ v -> 
+				if (v.m_path = my_path) then begin
+					match v.m_path with
+					| _, class_name ->
+						if not (List.mem class_name class_forwards) then class_forwards <- List.append class_forwards [class_name]
+				end) class_def.cl_module.m_extra.m_deps;
 			this#add_class_path class_def.cl_module.m_path;
 		end
 	method add_abstract (a_def:tabstract) (pl:tparams) =
@@ -139,7 +149,8 @@ class importsManager =
 	method get_class_frameworks = class_frameworks
 	method get_imports = class_imports
 	method get_imports_custom = class_imports_custom
-	method reset = class_frameworks <- []; class_imports <- []; class_imports_custom <- []
+	method get_class_forwards = class_forwards
+	method reset (path) = class_frameworks <- []; class_imports <- []; class_imports_custom <- []; class_forwards <- []; my_path <- path
 end;;
 
 class filesManager imports_manager app_name =
@@ -3707,6 +3718,10 @@ let generateImplementation ctx files_manager imports_manager =
 
 let generateHeader ctx files_manager imports_manager =
 	ctx.generating_header <- true;
+	
+	(* Generate any forward class references *)
+	List.iter (fun n -> ctx.writer#write("@class " ^ n); ctx.writer#terminate_line ) imports_manager#get_class_forwards;
+	
 	(* Import the super class *)
 	(match ctx.class_def.cl_super with
 		| None -> ()
@@ -3827,7 +3842,7 @@ let generate common_ctx =
 				let is_new_module_h = (m.module_path_h != module_path) in
 				(* When we create a new module reset the 'frameworks' and 'imports' that where stored for the previous module *)
 				(* A copy of the frameworks are kept in a non-resetable variable for later usage in .pbxproj *)
-				imports_manager#reset;
+				imports_manager#reset(module_path);
 				print_endline ("> Generating class : "^(snd class_path)^" in module "^(joinClassPath module_path "/"));
 				
 				(* Generate implementation *)
