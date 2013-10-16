@@ -1445,7 +1445,7 @@ and generateExpression ctx e =
 			| _ -> ()
 	  end;
 		
-    if (s_op="+" || s_op="+=") && (isString ctx e1 || isString ctx e2) then begin
+    if (s_op="+") && (isString ctx e1 || isString ctx e2) then begin
 			ctx.generating_string_append <- ctx.generating_string_append + 1;
 			(match s_op with
 				| "+" ->
