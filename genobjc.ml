@@ -1505,7 +1505,7 @@ and generateExpression ctx e =
 				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
 			| TLocal tvar ->
 				ctx.writer#write(tvar.v_name ^ " = ");
-				generateValue ctx e2
+				makeValue op e1 e2
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
 					generateExpression ctx texpr;
