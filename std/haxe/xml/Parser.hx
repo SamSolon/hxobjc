@@ -45,7 +45,6 @@ extern private class S {
 	public static inline var CDATA			= 17;
 	public static inline var ESCAPE			= 18;
 }
-
 class Parser
 {
 	static var escapes = {
@@ -75,10 +74,10 @@ class Parser
 		var start = 0;
 		var nsubs = 0;
 		var nbrackets = 0;
-		var c = str.fastCodeAt(p);
 		var buf = new StringBuf();
-		while (!StringTools.isEof(c))
+		while (p < str.length)
 		{
+			var c = str.fastCodeAt(p);
 			switch(state)
 			{
 				case S.IGNORE_SPACES:
@@ -321,7 +320,7 @@ class Parser
 						state = next;
 					}
 			}
-			c = str.fastCodeAt(++p);
+			++p;
 		}
 		
 		if (state == S.BEGIN)
