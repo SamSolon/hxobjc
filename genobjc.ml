@@ -1450,7 +1450,7 @@ and generateExpression ctx e =
 			(match s_op with
 				| "+" ->
 					ctx.writer#write "[";
-					generateValueOpAsString ctx e1;
+					generateValueOpAsString ctx e1; 
 					ctx.writer#write " stringByAppendingString:";
 				| "+=" ->
 					generateValueOpAsString ctx e1;
@@ -1472,12 +1472,13 @@ and generateExpression ctx e =
 			generateValueOp ctx e2;
 			ctx.require_pointer <- false;
 			ctx.writer#write "]";
-		end else if (s_op="==") && (isString ctx e1 || isString ctx e2) then begin
+		end else if ((s_op = "==") || (s_op = "!=")) && (isString ctx e1 || isString ctx e2) then begin
 			let s_type = Type.s_type(print_context()) in
 			debug ctx ("-== e1(" ^ (s_expr s_type e1) ^ ").isString:" ^ string_of_bool(isString ctx e1) ^ " e2.isString:" ^ string_of_bool(isString ctx e2));
-			match e1.eexpr with TCall(e,el) -> 
+			(match e1.eexpr with TCall(e,el) -> 
 				(match e.eexpr with TField(tfe, FInstance(tc,tcf)) -> debug ctx ("|TCall(e).instance "^(s_expr_kind tfe)^"|") | _ -> ())
-				| _ -> (); 
+				| _ -> ();); 
+			if (s_op = "!=") then ctx.writer#write("!");
 			ctx.writer#write "[";
 			generateValueOp ctx e1;
 			ctx.writer#write " isEqualToString:";
