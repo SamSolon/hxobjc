@@ -182,8 +182,7 @@
 
 		if( pos < 0 || len <= 0 ) return "";
 		
-		return untyped __objc__("[self substringFromIndex:pos]");
-		//return untyped __objc__("[self substringWithRange:NSMakeRange(pos,len)]");
+		return untyped __objc__("[self substringWithRange:NSMakeRange(pos,len)]");
 	}
 
 	/**
