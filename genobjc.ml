@@ -1447,18 +1447,9 @@ and generateExpression ctx e =
 		
     if (s_op="+") && (isString ctx e1 || isString ctx e2) then begin
 			ctx.generating_string_append <- ctx.generating_string_append + 1;
-			(match s_op with
-				| "+" ->
-					ctx.writer#write "[";
-					generateValueOpAsString ctx e1; 
-					ctx.writer#write " stringByAppendingString:";
-				| "+=" ->
-					generateValueOpAsString ctx e1;
-					ctx.writer#write " = [NSString stringWithFormat:@\"%@%@\", ";
-					generateValueOpAsString ctx e1;
-					ctx.writer#write ", ";
-				| _ -> ()
-			);
+			ctx.writer#write "[";
+			generateValueOpAsString ctx e1; 
+			ctx.writer#write " stringByAppendingString:";
 			generateValueOpAsString ctx e2;
 			ctx.writer#write "]";
 			ctx.generating_string_append <- ctx.generating_string_append - 1;
