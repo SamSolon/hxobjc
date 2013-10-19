@@ -1553,7 +1553,9 @@ and generateExpression ctx e =
 			ctx.generating_left_side_of_operator <- false;
 			ctx.writer#write (Printf.sprintf " %s " s_op);
 			ctx.generating_right_side_of_operator <- true;
+			push_require_pointer ctx false;
 			generateValueOp ctx e2;
+			pop_require_pointer ctx;
 			ctx.generating_right_side_of_operator <- false;
 		end;
 	(* variable fields on interfaces are generated as (class["field"] as class) *)
