@@ -2049,6 +2049,19 @@ and generateExpression ctx e =
 		ctx.writer#write("[dyninstance setValue:"^tvar.v_name^" forKey:@\""^tvar.v_name^"\"];");
 	  ) ctx.uprefs;
 		
+		(* Initialize any block vars *)
+		Hashtbl.iter (fun key v ->
+			match v with
+			| TConst tconstant ->
+				ctx.writer#new_line;
+				ctx.writer#write("[dyninstance setValue:");
+				push_require_pointer ctx true;
+				generateConstant ctx null tconstant;
+				pop_require_pointer ctx;
+				ctx.writer#write(" forKey:@\"" ^ key ^ "\"];")
+			| _ -> ()
+		) ctx.blockvars;
+		
 		ctx.uprefs <- [];
 		ctx.blockvars <- Hashtbl.create 0;
 		
