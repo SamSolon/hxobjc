@@ -1357,8 +1357,9 @@ and generateExpression ctx e =
 			generateValue ctx e1;
 			ctx.writer#write " hx_replaceObjectAtIndex:";
 			generateValue ctx e2;
-		end else begin
+		end else begin			
 			(* Cast the result *)
+(*
 			let pointer = ref true in
 			ctx.writer#write "((";
 			(match e1.etype with
@@ -1422,14 +1423,16 @@ and generateExpression ctx e =
 				| TAbstract _ -> ctx.writer#write "CASTTAbstract";
 				| _ -> ctx.writer#write "CASTOther";
 			);
-			ctx.writer#write ((if !pointer then "*" else "")^")[");
+			ctx.writer#write ((if !pointer then "*" else "")^"zzz)[");
+*)		ctx.writer#write("[");
 			generateValue ctx e1;
 			ctx.writer#write " hx_objectAtIndex:";
 			push_require_pointer ctx false;
 		  generateValue ctx e2;
 			pop_require_pointer ctx;
 			
-			ctx.writer#write "])";
+(*			ctx.writer#write "])"; *)
+			ctx.writer#write "]";
 		end
 	| TBinop (Ast.OpEq,e1,e2) when (match isSpecialCompare e1 e2 with Some c -> true | None -> false) ->
 		ctx.writer#write "binop";
