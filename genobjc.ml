@@ -1488,28 +1488,35 @@ and generateExpression ctx e =
 			generateValueOp ctx e2;
 			ctx.writer#write "]";
 		end else if (s_op = "=" || match op with OpAssignOp _ ->true | _ -> false) then begin
-			let makeValue op exp1 exp2 = 
+			let makeValue op exp1 exp2 as_object = 
+				let s_e2type = (typeToString ctx (follow e2.etype) e2.epos) in
+				let generate exp = 
+					if (as_object && not(isPointer s_e2type)) then begin
+						match s_e2type with
+						| "int" -> 
+								ctx.writer#write("[NSNumber numberWithInt:");
+								generateValue ctx exp;
+								ctx.writer#write("]") 
+						| _ -> error ("Unhandled makeValue as object type " ^  s_e2type) exp.epos
+					end 
+					else begin 
+						generateValue ctx exp;
+					end in
 				match op with 
 				| OpAssignOp binop ->
 					debug ctx ("-OpAssignOp:"^(Ast.s_binop binop)^"-");
 					generateValue ctx (mk (TBinop(binop, exp1, exp2)) exp1.etype exp1.epos)
-				| _ -> generateValue ctx e2 in
+				| _ -> generate e2 in
 			match e1.eexpr with 	
 			| TLocal tvar when isMessageAccess ctx tvar ->
 				ctx.writer#write("[self setValue:");
 				let s_e2type = (typeToString ctx (follow e2.etype) e2.epos) in
 				debug ctx("=== " ^ s_e2type ^ ">");
-				(match s_e2type with 
-				| "int" -> 
-					ctx.writer#write("[NSNumber numberWithInt:");
-					makeValue op e1 e2;
-					ctx.writer#write("]");
-				| _ -> makeValue op e1 e2); 
-				
+				makeValue op e1 e2 true;
 				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
 			| TLocal tvar ->
 				ctx.writer#write(tvar.v_name ^ " = ");
-				makeValue op e1 e2
+				makeValue op e1 e2 false
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
 					generateExpression ctx texpr;
@@ -1517,14 +1524,14 @@ and generateExpression ctx e =
 					| FInstance(tclass, tclass_field)-> 
 						(*ctx.writer#write("Assign TField FInstance Class " ^ (joinClassPath tclass.cl_path ".")  ^ " field:" ^ tclass_field.cf_name);*)
 						ctx.writer#write(" set" ^ (String.capitalize (remapKeyword tclass_field.cf_name)) ^":");
-						makeValue op e1 e2;
+						makeValue op e1 e2 false;
 						ctx.writer#write("]");
 					| FStatic(tclass, tclass_field) -> ctx.writer#write("Assign TField FStatic")
 					| FAnon(tclass_field) -> ctx.writer#write("Assign TField FAnon")
 					| FDynamic(string) -> 
 							debug ctx ("--FDynamic1 " ^ string ^ " -");
 							ctx.writer#write(" setValue:");
-							makeValue op e1 e2; (*generateValue ctx e2;*)
+							makeValue op e1 e2 true; (*generateValue ctx e2;*)
 							ctx.writer#write(" forKey:@\"" ^ string ^ "\"]")
 					| FClosure(tclass, tclass_field) -> ctx.writer#write("Assign TField FClosure")
 					| FEnum(tenum, tenum_field) -> ctx.writer#write("Assign TField FEnum"));
