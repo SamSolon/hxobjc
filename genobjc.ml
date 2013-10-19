@@ -950,7 +950,8 @@ let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_stat
 			ctx.writer#write (Printf.sprintf "%s%s" return_type (addPointerIfNeeded return_type))
 			
 		| HeaderBlockInline ->
-			ctx.writer#write ("^"^(typeToString ctx f.tf_type null))
+			let s_t = typeToString ctx f.tf_type null in
+			ctx.writer#write ("^" ^ s_t ^ (addPointerIfNeeded s_t))
 
 		| HeaderDynamic ->
 			(* void(^block3)(NSString); *)
