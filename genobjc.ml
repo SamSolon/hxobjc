@@ -336,7 +336,7 @@ type context = {
 	mutable generating_calls : int;(* How many calls are generated in a row *)
 	mutable generating_fields : int;(* How many fields are generated in a row *)
 	mutable generating_string_append : int;
-	mutable require_pointer : bool;
+	mutable saved_require_pointer : bool list;
 	mutable require_object : bool;
 	mutable return_needs_semicolon : bool;
 	mutable gen_uid : int;
@@ -376,7 +376,7 @@ let newContext common_ctx writer imports_manager file_info = {
 	generating_calls = 0;
 	generating_fields = 0;
 	generating_string_append = 0;
-	require_pointer = false;
+	saved_require_pointer = [false];
 	require_object = false;
 	return_needs_semicolon = false;
 	gen_uid = 0;
@@ -397,6 +397,17 @@ let newModuleContext ctx_m ctx_h = {
 	ctx_h = ctx_h;
 }
 
+let require_pointer ctx =
+	List.hd ctx.saved_require_pointer
+;;
+
+let push_require_pointer ctx is_required =
+	ctx.saved_require_pointer <- is_required::ctx.saved_require_pointer
+;;
+
+let pop_require_pointer ctx =
+	ctx.saved_require_pointer <- List.tl ctx.saved_require_pointer
+;;
 let debug ctx str =
 	if d then ctx.writer#write str
 ;;
@@ -877,14 +888,14 @@ let generateConstant ctx p = function
 	| TInt i ->
 		(* if ctx.generating_string_append > 0 then
 			ctx.writer#write (Printf.sprintf "@\"%ld\"" i)
-		else *) if ctx.require_pointer then
+		else *) if require_pointer ctx then
 			ctx.writer#write (Printf.sprintf "@%ld" i) (* %ld = int32 = (Int32.to_string i) *)
 		else
 			ctx.writer#write (Printf.sprintf "%ld" i)
 	| TFloat f ->
 		(* if ctx.generating_string_append > 0 then
 			ctx.writer#write (Printf.sprintf "@\"%s\"" f)
-		else *) if ctx.require_pointer then
+		else *) if require_pointer ctx then
 			ctx.writer#write (Printf.sprintf "@%s" f)
 		else
 			ctx.writer#write f
@@ -1413,10 +1424,9 @@ and generateExpression ctx e =
 			ctx.writer#write ((if !pointer then "*" else "")^")[");
 			generateValue ctx e1;
 			ctx.writer#write " hx_objectAtIndex:";
-      let savepointer = ctx.require_pointer in
-			ctx.require_pointer <- false;
+			push_require_pointer ctx false;
 		  generateValue ctx e2;
-			ctx.require_pointer <- savepointer;
+			pop_require_pointer ctx;
 			
 			ctx.writer#write "])";
 		end
@@ -1471,9 +1481,9 @@ and generateExpression ctx e =
 			generateValueOp ctx e1;
 			ctx.writer#write " withObject:";
 			ctx.generating_array_insert <- false;
-			ctx.require_pointer <- true;
+			push_require_pointer ctx true;
 			generateValueOp ctx e2;
-			ctx.require_pointer <- false;
+			pop_require_pointer ctx;
 			ctx.writer#write "]";
 		end else if ((s_op = "==") || (s_op = "!=")) && (isString ctx e1 || isString ctx e2) then begin
 			let s_type = Type.s_type(print_context()) in
@@ -1881,7 +1891,7 @@ and generateExpression ctx e =
 			ctx.writer#write ("@{@\"fileName\":@\""^file^"\", @\"lineNumber\":@\""^(Printf.sprintf "%ld" line)^"\", @\"className\":@\""^class_name^"\", @\"methodName\":@\""^meth^"\"}");
 	| TObjectDecl fields ->
 		ctx.generating_object_declaration <- true;
-		ctx.require_pointer <- true;
+		push_require_pointer ctx true;
 		
     (* Keep track of locals that are actually function args (iter won't find them) *)
 		let funargs = ref [] in
@@ -2013,7 +2023,7 @@ and generateExpression ctx e =
         (* Cut and paste from above (boo, hiss) *)
 				let key = tvar.v_name in
 				let t = (typeToString ctx tvar.v_type null) in
-		let ivartype = t ^ (if ctx.require_pointer && t != "id" then "*" else "") in 
+		let ivartype = t ^ (if require_pointer ctx && t != "id" then "*" else "") in 
 		ctx.writer#new_line;
 				ctx.writer#write("//!!!! Generate upref/instance variable "^key^" "^t);
 		ctx.writer#new_line;
@@ -2045,7 +2055,7 @@ and generateExpression ctx e =
 		ctx.writer#write("();");
 		
 		ctx.generating_object_declaration <- false;
-		ctx.require_pointer <- false;
+		pop_require_pointer ctx;
 			
 			(* return [NSMutableDictionary dictionaryWithObjectsAndKeys:
 						[^BOOL() { return p < [a count]; } copy], @"hasNext",
@@ -2053,11 +2063,11 @@ and generateExpression ctx e =
 						nil]; *)
 						
 	| TArrayDecl el ->
-		ctx.require_pointer <- true;
+		push_require_pointer ctx true;
 		ctx.writer#write "[@[";
 		concat ctx ", " (generateValue ctx) el;
 		ctx.writer#write "] mutableCopy]";
-		ctx.require_pointer <- false;
+		pop_require_pointer ctx;
 	| TThrow e ->
 		ctx.writer#write "@throw ";
 		generateValue ctx e;
