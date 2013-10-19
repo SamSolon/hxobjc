@@ -342,7 +342,7 @@ type context = {
 	mutable gen_uid : int;
 	mutable local_types : t list;
 	mutable uprefs : tvar list;
-	mutable blockvars : (string, tvar) Hashtbl.t;
+	mutable blockvars : (string, texpr_expr) Hashtbl.t;
 }
 let newContext common_ctx writer imports_manager file_info = {
 	com = common_ctx;
@@ -611,6 +611,18 @@ let is_message_target tfield_access =
 let isMessageAccess ctx tvar =
 	(List.mem tvar ctx.uprefs) || (Hashtbl.mem ctx.blockvars tvar.v_name)
 ;;
+
+(* Type name for constant *)
+let s_const_typename = function
+	| TInt _ -> "Int"
+	| TFloat _ -> "Float"
+	| TString _ -> "String"
+	| TBool _ -> "Bool"
+	| TNull -> "null"
+	| TThis -> "self"
+	| TSuper -> "super"
+;;	
+
 (* Generating correct type *)
 let remapHaxeTypeToObjc ctx is_static path pos =
 	match path with
@@ -1911,8 +1923,23 @@ and generateExpression ctx e =
   	ctx.writer#write("Class dynclass = objc_allocateClassPair([NSObject class], \"DynClass\", 0)");
 		ctx.writer#terminate_line;
 		
-    List.iter ( fun (key, expr) ->
-			  (*ctx.writer#write("Field:"^dump(expr));*)
+		let makeIVar varname texpr_expr = 
+			let tstr = 
+				(match texpr_expr with
+				| TLocal tvar -> typeToString ctx tvar.v_type null
+				| TConst tconstant -> 
+						let tname = s_const_typename tconstant in
+						remapHaxeTypeToObjc ctx false ([], tname) null
+				| _ -> "id") in
+			let ivartype = tstr ^ addPointerIfNeeded tstr in
+			ctx.writer#new_line;
+			ctx.writer#write("//!!!! Generate instance variable " ^ varname);
+			ctx.writer#new_line;
+			ctx.writer#write("class_addIvar(dynclass, \""^ varname ^"\",sizeof(" ^ ivartype ^ "), log2(sizeof(" ^ ivartype ^ ")),@encode(" ^ ivartype ^ "));" );
+			Hashtbl.add ctx.blockvars varname texpr_expr in
+			
+		List.iter ( fun (key, expr) ->
+				(*ctx.writer#write("Field:"^dump(expr));*)
 				let t = (typeToString ctx expr.etype expr.epos) in 
 				ctx.writer#new_line;
 				ctx.writer#write("//Generate object decl for "^key^" "^t^" = "^(match expr.eexpr  with TFunction _ -> "Function" | _ -> "Other"));
@@ -1925,16 +1952,16 @@ and generateExpression ctx e =
 							let selector = String.concat "" selectors in
 							let mtypes = key^"_mtypes" in
 (*
-					    ctx.writer#write(t^" (^"^key^")() = "); 
+							ctx.writer#write(t^" (^"^key^")() = "); 
 							generateValue ctx expr;
 							ctx.writer#write(";");
 							ctx.writer#terminate_line;
 *)						
 							(* Build the type string for the method *)
-              ctx.writer#new_line;
+							ctx.writer#new_line;
 							ctx.writer#write("NSMutableString *"^mtypes^" = [NSMutableString stringWithUTF8String:@encode("^t^")];");
 							
-              ctx.writer#new_line;
+							ctx.writer#new_line;
 							ctx.writer#write("["^mtypes^" appendString:@\"@:\"];");
 
 							(* Add additional types for any params *)
@@ -1945,13 +1972,16 @@ and generateExpression ctx e =
 
  							ctx.writer#new_line;
 							ctx.writer#write("class_addMethod(dynclass, @selector("^selector^"),"
-      													^"imp_implementationWithBlock(");
+																^"imp_implementationWithBlock(");
 							generateValue ctx expr;
 							ctx.writer#new_line;
 							ctx.writer#write("),["^mtypes^" UTF8String]);");
 							
-				| TLocal tvar ->
-							let s_type = Type.s_type(print_context()) in
+				| ((TLocal _) as expr)
+				| ((TConst _) as expr) ->
+							makeIVar key expr
+(*
+														let s_type = Type.s_type(print_context()) in
 							print_endline("***********Process block tlocal " ^ tvar.v_name ^ " for " ^ key ^ (Type.s_expr s_type expr));
 							let t = remapKeyword (typeToString ctx tvar.v_type null) in
 							let ivartype = t ^ (if ctx.require_pointer && t != "id" then "*" else "") in 
@@ -1959,8 +1989,11 @@ and generateExpression ctx e =
 							ctx.writer#write("//!!!! Generate instance variable "^key^" "^t);
  							ctx.writer#new_line;
 							ctx.writer#write("class_addIvar(dynclass, \""^key^"\",sizeof("^ivartype^"), log2(sizeof("^ivartype^")),@encode("^ivartype^"));");
-							Hashtbl.add ctx.blockvars key tvar
-				| _ -> error ( "!!!! Invalid field in anonymous block" ^ (Type.s_expr_kind expr)) expr.epos
+							Hashtbl.add ctx.blockvars key expr.eexpr
+*)
+				| _ ->
+							let s_type = Type.s_type(print_context()) in 
+							error ( "!!!! Invalid field type for '"^ key ^ "' in anonymous block" ^ (Type.s_expr s_type expr)) expr.epos
 (*
 														ctx.writer#new_line;
 							ctx.writer#write("class_addMethod(dynclass, @selector("^key^"),"
