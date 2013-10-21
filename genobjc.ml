@@ -1552,6 +1552,8 @@ and generateExpression ctx e =
 			| _ -> let s_type = Type.s_type(print_context()) in 
 			       ctx.writer#write("Some other lvalue:" ^ (Type.s_expr_kind e1) ^ ":" ^ (Type.s_expr s_type e1) ^ " = " ^ (Type.s_expr s_type e2));
 		end else begin
+			let islogop = (s_op = "&&") || (s_op = "||") in
+			if islogop then ctx.writer#write("(");
 			ctx.generating_left_side_of_operator <- true;
 			generateValueOp ctx e1;
 			ctx.generating_left_side_of_operator <- false;
@@ -1561,6 +1563,7 @@ and generateExpression ctx e =
 			generateValueOp ctx e2;
 			pop_require_pointer ctx;
 			ctx.generating_right_side_of_operator <- false;
+			if islogop then ctx.writer#write(")");
 		end;
 	(* variable fields on interfaces are generated as (class["field"] as class) *)
 	(* | TField ({etype = TInst({cl_interface = true} as c,_)} as e,FInstance (_,{ cf_name = s })) ->
