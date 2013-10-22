@@ -24,8 +24,14 @@
  */
 
 enum XmlType {
+    ElementType;
+    PCDataType;
+    CDataType;
+    CommentTypeType;
+    DocTypeType;
+    ProcessingInstructionType;
+    DocumentType;
 }
-
 @:coreApi class Xml {
 	public static var Element(default,null) : XmlType;
 	public static var PCData(default,null) : XmlType;
@@ -38,7 +44,7 @@ enum XmlType {
 
 	private var _nodeName : String;
 	private var _nodeValue : String;
-	private var _attributes : Dynamic<String>;
+	private var _attributes : Map<String, String>;
 	private var _children : Array<Xml>;
 	private var _parent : Xml;
 
@@ -46,66 +52,7 @@ enum XmlType {
 	}
 	
 	public static function parse( str : String ) : Xml {
-		var x = new Xml();
-		x._children = new Array();
-		var parser = {
-			cur : x,
-			xml : function(name,att) {
-				var x = new Xml();
-				x._parent = untyped __this__.cur;
-				x.nodeType = Xml.Element;
-				x._nodeName = new String(name);
-				x._attributes = att;
-				x._children = new Array();
-				untyped {
-					var i = 0;
-					__this__.cur.addChild(x);
-					__this__.cur = x;
-				}
-			},
-			cdata : function(text) {
-				var x = new Xml();
-				x._parent = untyped __this__.cur;
-				x.nodeType = Xml.CData;
-				x._nodeValue = new String(text);
-				untyped __this__.cur.addChild(x);
-			},
-			pcdata : function(text) {
-				var x = new Xml();
-				x._parent = untyped __this__.cur;
-				x.nodeType = Xml.PCData;
-				x._nodeValue = new String(text);
-				untyped __this__.cur.addChild(x);
-			},
-			comment : function(text:String) {
-				var x = new Xml();
-				x._parent = untyped __this__.cur;
-				if( untyped text.cca(0) == 63 ) {
-					x.nodeType = Xml.ProcessingInstruction;
-					text = new String(text);
-					text = text.substr(1, text.length - 2);
-				} else {
-					x.nodeType = Xml.Comment;
-					text = new String(text);
-				}
-				x._nodeValue = text;
-				untyped __this__.cur.addChild(x);
-			},
-			doctype : function(text) {
-				var x = new Xml();
-				x._parent = untyped __this__.cur;
-				x.nodeType = Xml.DocType;
-				x._nodeValue = (new String(text)).substr(1);
-				var p : Xml = untyped __this__.cur;
-				p.addChild(x);
-			},
-			done : function() {
-				untyped __this__.cur = __this__.cur._parent;
-			}
-		};
-		untyped _parse(str,parser);
-		x.nodeType = Xml.Document;
-		return x;
+		return haxe.xml.Parser.parse(str);
 	}
 
 
@@ -199,35 +146,34 @@ enum XmlType {
 	public function get( att : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.field( _attributes, att );
+		return _attributes.get(att);
 	}
 
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		if (_attributes==null)
-			_attributes = {};
-		Reflect.setField (_attributes, att, value );
-		return null;
+			_attributes = new Map<String,String>();
+		_attributes.set(att, value);
 	}
 
 	public function remove( att : String ) : Void{
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		Reflect.deleteField( _attributes, att );
+		_attributes.remove(att);
 		return null;
 	}
 
 	public function exists( att : String ) : Bool {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.hasField( _attributes, att );
+		return _attributes.exists(att);
 	}
 
 	public function attributes() : Iterator<String> {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.fields( _attributes ).iterator();
+		return _attributes.keys();
 	}
 
 	public function iterator() : Iterator<Xml> {
@@ -327,7 +273,6 @@ enum XmlType {
 		if( x._parent != null ) x._parent._children.remove(x);
 		x._parent = this;
 		_children.push( x );
-		return null;
 	}
 
    public function removeChild( x : Xml ) : Bool {
@@ -344,7 +289,6 @@ enum XmlType {
 		if( x._parent != null ) x._parent._children.remove(x);
 		x._parent = this;
 		_children.insert( pos, x );
-		return null;
 	}
 
 	public function toString() : String {
@@ -355,18 +299,18 @@ enum XmlType {
 
 	private function toStringRec(s: StringBuf) : Void {
 		switch( nodeType ) {
-		case Xml.Document:
+		case DocumentType:
 			for( x in _children )
 				x.toStringRec(s);
-		case Xml.Element:
+		case ElementType:
 			s.addChar("<".code);
 			s.add(_nodeName);
-			for( k in Reflect.fields(_attributes) ) {
+			for( k in attributes() ) {
 				s.addChar(" ".code);
 				s.add(k);
 				s.addChar("=".code);
 				s.addChar("\"".code);
-				s.add(Reflect.field(_attributes,k));
+				s.add(_attributes.get(k));
 				s.addChar("\"".code);
 			}
 			if( _children.length == 0 ) {
@@ -381,43 +325,25 @@ enum XmlType {
 			s.addChar("/".code);
 			s.add(_nodeName);
 			s.addChar(">".code);
-		case Xml.PCData:
+		case PCDataType:
 			s.add(_nodeValue);
-		case Xml.CData:
+		case CDataType:
 			s.add("<![CDATA[");
 			s.add(_nodeValue);
 			s.add("]]>");
-		case Xml.Comment:
+		case CommentTypeType:
 			s.add("<!--");
 			s.add(_nodeValue);
 			s.add("-->");
-		case Xml.DocType:
+		case DocTypeType:
 			s.add("<!DOCTYPE ");
 			s.add(_nodeValue);
 			s.add(">");
-		case Xml.ProcessingInstruction:
+		case ProcessingInstructionType:
 			s.add("<?");
 			s.add(_nodeValue);
 			s.add("?>");
 		}
 	}
-
-	static function __init__() : Void untyped {
-		PCData = Type.createEnum(XmlType,"__");
-		Element = Type.createEnum(XmlType,"__");
-		CData =  Type.createEnum(XmlType,"__");
-		Comment = Type.createEnum(XmlType,"__");
-		DocType = Type.createEnum(XmlType,"__");
-		ProcessingInstruction =  Type.createEnum(XmlType,"__");
-		Document = Type.createEnum(XmlType,"__");
-		__global__.__hxcpp_enum_force(PCData , "pcdata", 0);
-		__global__.__hxcpp_enum_force(Element , "element", 1);
-		__global__.__hxcpp_enum_force(CData , "cdata", 2);
-		__global__.__hxcpp_enum_force(Comment , "comment", 3);
-		__global__.__hxcpp_enum_force(DocType , "doctype", 4);
-		__global__.__hxcpp_enum_force(ProcessingInstruction , "prolog", 5);
-		__global__.__hxcpp_enum_force(Document , "document", 6);
-	}
-
 }
 
