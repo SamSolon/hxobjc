@@ -57,7 +57,7 @@ class StringMap<T> implements Map.IMap<String,T> {
 		Returns an iterator of all keys in the hashtable.
 	**/
 	public function keys() : Iterator<String> {
-		var a:Array<String> = untyped this.allKeys();
+		var a:Array<String> = untyped __objc__("[NSMutableArray arrayWithArray:[self allKeys]]");
 		return a.iterator();
 	}
 
