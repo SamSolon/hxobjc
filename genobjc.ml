@@ -2149,14 +2149,10 @@ and generateExpression ctx e =
 				| TLazy _ -> print_endline("Local var TLazy for " ^ v.v_name ^ " -> " ^ t);
 				| TAbstract _ -> print_endline("Local var TAbstract for " ^ v.v_name ^ " -> " ^ t));
 			(match v.v_type with
-			| TMono r -> (match !r with None -> () | Some t -> 
-				match t with
+				| TMono ({ contents = Some TInst(c, _)})
 				| TInst (c,_) ->
-					(* ctx.imports_manager#add_class_path c.cl_path; *)
-					print_endline("!!!!!!! add_class " ^ joinClassPath c.cl_path ".");
 					ctx.imports_manager#add_class c
-				| _ -> ())
-			| _ -> ());
+				| _ -> ());
 			match eo with
 			| None -> ()
 			| Some e ->
