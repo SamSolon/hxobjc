@@ -811,6 +811,34 @@ let isString ctx e =
 	is
 ;;
 
+(* We're about to generate something that will yield an object ref, if our caller didn't want an object we'll*)
+(* have to deref based on the type *)
+let startObjectRef ctx e =
+	debug ctx("-startObjectRef " ^ (string_of_bool (require_pointer ctx)));
+	if not(require_pointer ctx) then begin
+		let tstr = typeToString ctx (follow e.etype) null in
+		debug ctx(" " ^ tstr ^ " -");
+		match tstr with 
+		| "int"
+		| "uint"
+		| "float"
+		| "BOOL" -> ctx.writer#write("[")
+		| _ -> ()
+		end
+;;
+
+let endObjectRef ctx e =
+	if not(require_pointer ctx) then begin
+		let tstr = typeToString ctx (follow e.etype) null in
+		match tstr with 
+		(* Must match startObjectRef above*)
+		| "int" -> ctx.writer#write("] intValue")
+		| "uint" -> ctx.writer#write("] unsignedIntegerValue")
+		| "float" -> ctx.writer#write("] floatValue")
+		| "BOOL" -> ctx.writer#write("[ boolValue")
+		| _ -> ()
+		end
+;;
 let rec iterSwitchBreak in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
@@ -1332,7 +1360,9 @@ and generateExpression ctx e =
 				| _ -> s_name in
 		debug ctx (stype ^ ">");
 		if (isMessageAccess ctx v) then begin (* local instance var *)
+			startObjectRef ctx e;
 			ctx.writer#write("[self valueForKey:@\""^ s_value ^"\"]");
+			endObjectRef ctx e
 		end else begin
 			ctx.writer#write (s_value);
 		end
@@ -1530,7 +1560,9 @@ and generateExpression ctx e =
 				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
 			| TLocal tvar ->
 				ctx.writer#write(tvar.v_name ^ " = ");
-				makeValue op e1 e2 false
+				push_require_pointer ctx false;
+				makeValue op e1 e2 false;
+				pop_require_pointer ctx
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
 					generateExpression ctx texpr;
@@ -1663,11 +1695,13 @@ and generateExpression ctx e =
 				ctx.writer#write (remapKeyword name);
 			end else begin
 				ctx.writer#write "[";
+				startObjectRef ctx  e;
 				generateValue ctx e;
 				(* generateFieldAccess ctx e.etype name; *)
 				ctx.writer#write(" valueForKey:@\"");
 				(*(*if ctx.generating_calls = 0 then*) ctx.writer#write("valueForKey:@\"") (*else ctx.writer#write(" ")*);*)
 				ctx.writer#write (remapKeyword name);
+				endObjectRef ctx;
 				(*ctx.writer#write ("\"");*)
 				ctx.writer#write("\"]");
 			end
@@ -2136,7 +2170,9 @@ and generateExpression ctx e =
 						| _ -> ()
 					)
 				); *)
-				generateValue ctx e
+				push_require_pointer ctx false;
+				generateValue ctx e;
+				pop_require_pointer ctx
 		) vl;
 		(* if List.length vl == 1 then ctx.writer#write ";"; *)
 		ctx.generating_var <- false;
@@ -2457,15 +2493,35 @@ and generateValue ctx e =
 		ctx.writer#write("\"generateValue " ^ s_expr s_type e^"\"");*)
 		ctx.writer#write("[");
 		debug ctx ("-ppp-" ^ (typeToString ctx (follow e.etype) texpr.epos) ^ ">");
-		generateExpression ctx texpr;
-		ctx.writer#write(" ");
 		(match tfield_access with
-		| FInstance(_, tclass_field) -> debug ctx "-FInstance-" ; ctx.writer#write(remapKeyword tclass_field.cf_name)
-		| FStatic(_, tclass_field) -> debug ctx "-FStatic-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
-		| FAnon tclass_field -> debug ctx "-FAnon-"; ctx.writer#write(remapKeyword tclass_field.cf_name)
-		| FDynamic(fname) -> debug ctx "-FDynamic3-"; ctx.writer#write("valueForKey:@\"" ^ remapKeyword fname ^ "\"");
+		| FInstance(_, tclass_field) -> 
+			debug ctx "-FInstance-" ;
+			generateExpression ctx texpr;
+			ctx.writer#write(" ");
+			ctx.writer#write(remapKeyword tclass_field.cf_name)
+		| FStatic(_, tclass_field) -> 
+			generateExpression ctx texpr;
+			ctx.writer#write(" ");
+			debug ctx "-FStatic-";
+			ctx.writer#write(remapKeyword tclass_field.cf_name)
+		| FAnon tclass_field -> 
+			generateExpression ctx texpr;
+			ctx.writer#write(" ");
+			debug ctx "-FAnon-";
+			ctx.writer#write(remapKeyword tclass_field.cf_name)
+		| FDynamic(fname) -> 
+			debug ctx "-FDynamic3-"; 
+			startObjectRef ctx e;
+			generateExpression ctx texpr;
+			ctx.writer#write(" ");
+			ctx.writer#write("valueForKey:@\"" ^ remapKeyword fname ^ "\"");
+			endObjectRef ctx e
 		| FClosure _ -> error "Field reference by FClosure not yet implemented" e.epos
-		|	FEnum(tenum, tenum_field) -> debug ctx "-FEnum-"; ctx.writer#write(remapKeyword tenum_field.ef_name));
+		|	FEnum(tenum, tenum_field) ->
+			generateExpression ctx texpr;
+			ctx.writer#write(" ");
+			debug ctx "-FEnum-";
+			ctx.writer#write(remapKeyword tenum_field.ef_name));
 		debug ctx "-ppp-";
 		ctx.writer#write("]");
 	| TTypeExpr _
