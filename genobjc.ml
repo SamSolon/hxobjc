@@ -86,7 +86,7 @@ class importsManager =
 		| ([],"Bool") -> ();
 		| _ -> if not (List.mem class_path class_imports) then class_imports <- List.append class_imports [class_path];
 	method add_class (class_def:tclass) = 
-		print_endline("   add_class " ^ (joinClassPath class_def.cl_path "."));
+		(*print_endline("   add_class " ^ (joinClassPath class_def.cl_path "."));*)
 		if (Meta.has Meta.Framework class_def.cl_meta) then begin
 			let name = getFirstMetaValue Meta.Framework class_def.cl_meta in
 			this#add_framework name;
@@ -102,7 +102,7 @@ class importsManager =
 			this#add_class_path class_def.cl_module.m_path;
 		end
 	method add_abstract (a_def:tabstract) (pl:tparams) =
-		print_endline("   add_abstract " ^ (joinClassPath a_def.a_path "."));
+		(*print_endline("   add_abstract " ^ (joinClassPath a_def.a_path "."));*)
 		(* Generate a reference to the underlying class instead???? *)
 		if Meta.has Meta.MultiType a_def.a_meta then begin
 			let tpath = (joinClassPath a_def.a_path "/") in 
@@ -139,7 +139,7 @@ class importsManager =
 		end
 
 	method add_framework (name:string) =
-		print_endline("  add_framework " ^ name);
+		(*print_endline("  add_framework " ^ name);*)
 		if not (List.mem name all_frameworks) then all_frameworks <- List.append all_frameworks [name];
 		if not (List.mem name class_frameworks) then class_frameworks <- List.append class_frameworks [name];
 	method add_class_import_custom (class_path:string) = class_imports_custom <- List.append class_imports_custom ["\""^class_path^"\""];
