@@ -2487,7 +2487,7 @@ and generateValue ctx e =
 	| TField(texpr, tfield_access) when is_message_target tfield_access ->
 		(*let s_type = Type.s_type(print_context()) in
 		ctx.writer#write("\"generateValue " ^ s_expr s_type e^"\"");*)
-		ctx.writer#write("[");
+		if (not(ctx.generating_selector)) then ctx.writer#write("[");
 		debug ctx ("-ppp-" ^ (typeToString ctx (follow e.etype) texpr.epos) ^ ">");
 		(match tfield_access with
 		| FInstance(_, tclass_field) -> 
@@ -2512,14 +2512,25 @@ and generateValue ctx e =
 			ctx.writer#write(" ");
 			ctx.writer#write("valueForKey:@\"" ^ remapKeyword fname ^ "\"");
 			endObjectRef ctx e
-		| FClosure _ -> error "Field reference by FClosure not yet implemented" e.epos
+		| FClosure(Some tclass, tclass_field) when ctx.generating_selector ->
+			ctx.writer#write(tclass_field.cf_name);
+			debug ctx ("-FClosure " ^ (s_t tclass_field.cf_type) ^ "-");
+			(match tclass_field.cf_type with
+			| TFun(params, t) ->
+				(match params with
+				| [] -> ()
+				| [p] -> ctx.writer#write(":")
+				| _::rest -> List.iter(fun(n, b, t) -> ctx.writer#write(":" ^ n)) rest)
+			| _ -> error("Field reference by closure when generating selector doesn't support " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos)
+		| FClosure _ -> 
+			error "Field reference by FClosure not yet implemented" e.epos
 		|	FEnum(tenum, tenum_field) ->
 			generateExpression ctx texpr;
 			ctx.writer#write(" ");
 			debug ctx "-FEnum-";
 			ctx.writer#write(remapKeyword tenum_field.ef_name));
 		debug ctx "-ppp-";
-		ctx.writer#write("]");
+		if (not(ctx.generating_selector)) then ctx.writer#write("]");
 	| TTypeExpr _
 	| TConst _
 	| TLocal _
