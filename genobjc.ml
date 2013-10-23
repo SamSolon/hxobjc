@@ -2519,7 +2519,6 @@ and generateValue ctx e =
 			| TFun(params, t) ->
 				(match params with
 				| [] -> ()
-				| [p] -> ctx.writer#write(":")
 				| _::rest -> 
 					ctx.writer#write(":");
 					List.iter(fun(n, b, t) -> ctx.writer#write(n ^ ":")) rest)
