@@ -2520,7 +2520,9 @@ and generateValue ctx e =
 				(match params with
 				| [] -> ()
 				| [p] -> ctx.writer#write(":")
-				| _::rest -> List.iter(fun(n, b, t) -> ctx.writer#write(":" ^ n)) rest)
+				| _::rest -> 
+					ctx.writer#write(":");
+					List.iter(fun(n, b, t) -> ctx.writer#write(n ^ ":")) rest)
 			| _ -> error("Field reference by closure when generating selector doesn't support " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos)
 		| FClosure _ -> 
 			error "Field reference by FClosure not yet implemented" e.epos
