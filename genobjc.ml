@@ -2051,7 +2051,9 @@ and generateExpression ctx e =
 							ctx.writer#write("),["^mtypes^" UTF8String]);");
 							
 				| ((TLocal _) as expr)
-				| ((TConst _) as expr) ->
+				| ((TConst _) as expr)
+				| ((TField _) as expr)
+				| ((TCall _) as expr) ->
 							makeIVar key expr
 (*
 														let s_type = Type.s_type(print_context()) in
@@ -2066,7 +2068,7 @@ and generateExpression ctx e =
 *)
 				| _ ->
 							let s_type = Type.s_type(print_context()) in 
-							error ( "!!!! Invalid field type for '"^ key ^ "' in anonymous block" ^ (Type.s_expr s_type expr)) expr.epos
+							error ( "!!!! Invalid field type for '"^ key ^ "' in anonymous block " ^ (s_expr_kind expr) ^ "/" ^ (Type.s_expr s_type expr)) expr.epos
 (*
 														ctx.writer#new_line;
 							ctx.writer#write("class_addMethod(dynclass, @selector("^key^"),"
