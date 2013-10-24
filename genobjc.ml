@@ -1118,7 +1118,22 @@ let rec generateCall ctx (func:texpr) arg_list =
 			ctx.writer#write ")";
 	
 	(* Generate an Objective-C call with [] *)
-	end else begin
+	end else
+		match func.eexpr with
+		| TLocal tvar -> (* Call through a local which we assume holds an array with [selector, object] *)
+			ctx.writer#write("objc_msgSend([" ^ tvar.v_name ^ " objectAtIndex:0], [[" ^ tvar.v_name ^ " objectAtIndex:1] pointerValue]");
+			List.iter (fun e -> ctx.writer#write(", "); generateValue ctx e) arg_list;
+			ctx.writer#write(")");
+			
+		| TCall (texpr, _) -> 
+			ctx.writer#write("objc_msgSend([");
+			generateValue ctx texpr;
+			ctx.writer#write(" objectAtIndex:0], [[");
+			generateValue ctx texpr;
+			ctx.writer#write(" objectAtIndex:1] pointerValue]");
+			List.iter (fun e -> ctx.writer#write(", "); generateValue ctx e) arg_list;
+			ctx.writer#write(")");
+		| _ -> begin
 		(* ctx.writer#write "-OBJC-"; *)
 		(* A call should cancel the TField *)
 		(* When we have a self followed by 2 TFields in a row we use dot notation for the first field *)
@@ -1169,12 +1184,10 @@ let rec generateCall ctx (func:texpr) arg_list =
 				(* The first selector isn't generated since it's the name so we just write it out here*)
 				ctx.writer#write(" " ^ Type.field_name tfield_access);
 			
-			| TLocal tvar ->
-				ctx.writer#write(tvar.v_name);
-			
 			| _ ->
+				let s_type = Type.s_type(print_context()) in
 				 print_endline("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func));
-				 error ("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func)) func.epos;
+				 error ("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func) ^ (s_expr s_type func)) func.epos;
 		end else
 			generateValue ctx func;
 
@@ -2138,16 +2151,17 @@ and generateExpression ctx e =
 			if isPointer t then ctx.writer#new_line;
 			ctx.writer#write (Printf.sprintf "%s %s%s" t (addPointerIfNeeded t) (remapKeyword v.v_name));
 			(* Check if this Type is a Class and if it's imported *)
-			(match v.v_type with
-				| TMono _ -> print_endline("Local var TMono for " ^ v.v_name ^ " -> " ^ t)
-				| TEnum _ -> print_endline("Local var TEnum for " ^ v.v_name ^ " -> " ^ t)
-				| TInst _ -> print_endline("Local var TInst for " ^ v.v_name ^ " -> " ^ t);
-				| TType _ -> print_endline("Local var TType for " ^ v.v_name ^ " -> " ^ t);
-				| TFun  _ -> print_endline("Local var TFun for " ^ v.v_name ^ " -> " ^ t);
-				| TAnon _ -> print_endline("Local var TAnon for " ^ v.v_name ^ " -> " ^ t);
-				| TDynamic _ -> print_endline("Local var TDynamic for " ^ v.v_name ^ " -> " ^ t);
-				| TLazy _ -> print_endline("Local var TLazy for " ^ v.v_name ^ " -> " ^ t);
-				| TAbstract _ -> print_endline("Local var TAbstract for " ^ v.v_name ^ " -> " ^ t));
+			( let s_type = Type.s_type(print_context()) in
+				match v.v_type with
+				| TMono tt -> debug ctx("-\"-Local var TMono for " ^ v.v_name ^ " -> " ^ t ^ " " ^ (match !tt with Some ttt -> (s_t ttt) ^ "/" ^ (s_type ttt) | _ -> "none") ^ "-\"")
+				| TEnum _ -> debug ctx("\"-Local var TEnum for " ^ v.v_name ^ " -> " ^ t ^ "-\"")
+				| TInst _ -> debug ctx("\"-Local var TInst for " ^ v.v_name ^ " -> " ^ t ^ "-\"")
+				| TType _ -> debug ctx("\"-Local var TType for " ^ v.v_name ^ " -> " ^ t ^ "-\"")
+				| TFun  _ -> debug ctx("\"-Local var TFun for " ^ v.v_name ^ " -> " ^ t ^ "-\"")
+				| TAnon _ -> debug ctx("\"-Local var TAnon for " ^ v.v_name ^ " -> " ^ t ^ "-\"")
+				| TDynamic _ -> debug ctx("\"-Local var TDynamic for " ^ v.v_name ^ " -> " ^ t ^ "-\"")
+				| TLazy _ -> debug ctx("\"-Local var TLazy for " ^ v.v_name ^ " -> " ^ t ^ "-\"")
+				| TAbstract _ -> debug ctx("\"-Local var TAbstract for " ^ v.v_name ^ " -> " ^ t ^ "-\""));
 			(match v.v_type with
 				| TMono ({ contents = Some TInst(c, _)})
 				| TInst (c,_) ->
@@ -2484,6 +2498,25 @@ and generateValue ctx e =
 		)
 	in
 	match e.eexpr with
+	| TField(texpr, FClosure(tclass, tclass_field)) ->
+		debug ctx("------ Generating closure as Invoke ----");
+		if not(ctx.generating_selector) then begin
+			ctx.writer#write("[NSArray arrayWithObjects:");
+			generateValue ctx texpr;
+			ctx.writer#write(", [NSValue valueWithPointer:@selector(");
+		end;
+		ctx.writer#write(tclass_field.cf_name);
+		debug ctx ("-FClosure " ^ (s_t tclass_field.cf_type) ^ "-");
+		(match tclass_field.cf_type with
+		| TFun(params, t) ->
+			(match params with
+			| [] -> ()
+			| _::rest -> 
+				ctx.writer#write(":");
+				List.iter(fun(n, b, t) -> ctx.writer#write(n ^ ":")) rest)
+		| _ -> error("Can't generate TField/FClosure with type " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos);
+		if not(ctx.generating_selector) then 
+			ctx.writer#write(")], nil]")
 	| TField(texpr, tfield_access) when is_message_target tfield_access ->
 		(*let s_type = Type.s_type(print_context()) in
 		ctx.writer#write("\"generateValue " ^ s_expr s_type e^"\"");*)
@@ -2512,17 +2545,8 @@ and generateValue ctx e =
 			ctx.writer#write(" ");
 			ctx.writer#write("valueForKey:@\"" ^ remapKeyword fname ^ "\"");
 			endObjectRef ctx e
-		| FClosure(Some tclass, tclass_field) when ctx.generating_selector ->
-			ctx.writer#write(tclass_field.cf_name);
-			debug ctx ("-FClosure " ^ (s_t tclass_field.cf_type) ^ "-");
-			(match tclass_field.cf_type with
-			| TFun(params, t) ->
-				(match params with
-				| [] -> ()
-				| _::rest -> 
-					ctx.writer#write(":");
-					List.iter(fun(n, b, t) -> ctx.writer#write(n ^ ":")) rest)
-			| _ -> error("Field reference by closure when generating selector doesn't support " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos)
+		| FClosure(Some tclass, tclass_field) ->
+				error("Field reference by closure doesn't support " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos
 		| FClosure _ -> 
 			error "Field reference by FClosure not yet implemented" e.epos
 		|	FEnum(tenum, tenum_field) ->
