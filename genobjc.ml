@@ -2668,24 +2668,24 @@ let generateProperty ctx field pos is_static =
 			ctx.writer#write ("+ ("^t^(addPointerIfNeeded t)^") "^id^";\n");
 			ctx.writer#write ("+ (void) set"^(String.capitalize id)^":("^t^(addPointerIfNeeded t)^")val;")
 		end
-	else begin
-		let getter = match field.cf_kind with
-		| Var v -> (match v.v_read with
-			| AccCall -> Printf.sprintf ", getter=get_%s" field.cf_name;
-			| _ -> "")
-		| _ -> "" in
-		let setter = match field.cf_kind with
-		| Var v -> (match v.v_write with
-			| AccCall -> Printf.sprintf ", setter=set_%s:" field.cf_name;
-			| _ -> "")
-		| _ -> "" in
-		let is_enum = (match field.cf_type with
-			| TEnum (e,_) -> true
-			| _ -> false) in
-		let strong = if Meta.has Meta.Weak field.cf_meta then ", weak" else if is_enum then "" else if (isPointer t) then ", strong" else "" in
-		let readonly = if false then ", readonly" else "" in
-		ctx.writer#write (Printf.sprintf "@property (nonatomic%s%s%s%s) %s %s%s;" strong readonly getter setter t (addPointerIfNeeded t) (remapKeyword id))
-	end
+		else begin
+			let getter = match field.cf_kind with
+			| Var v -> (match v.v_read with
+				| AccCall -> Printf.sprintf ", getter=get_%s" field.cf_name;
+				| _ -> "")
+			| _ -> "" in
+			let setter = match field.cf_kind with
+			| Var v -> (match v.v_write with
+				| AccCall -> Printf.sprintf ", setter=set_%s:" field.cf_name;
+				| _ -> "")
+			| _ -> "" in
+			let is_enum = (match field.cf_type with
+				| TEnum (e,_) -> true
+				| _ -> false) in
+			let strong = if Meta.has Meta.Weak field.cf_meta then ", weak" else if is_enum then "" else if (isPointer t) then ", strong" else "" in
+			let readonly = if false then ", readonly" else "" in
+			ctx.writer#write (Printf.sprintf "@property (nonatomic%s%s%s%s) %s %s%s;" strong readonly getter setter t (addPointerIfNeeded t) (remapKeyword id))
+		end
 	end
 	else begin
 		if is_static then begin
