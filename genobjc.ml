@@ -4098,6 +4098,8 @@ let generate common_ctx =
 					m.ctx_h.writer#write_copy module_path (appName common_ctx);
 				end;
 				m.ctx_h.class_def <- class_def;
+				(* Add any implemented interfaces to the imports *)
+				List.iter(fun (i,_) -> imports_manager#add_class i) m.ctx_h.class_def.cl_implements;
 				if class_def.cl_interface then begin
 					m.ctx_h.is_protocol <- true;
 					processFields m.ctx_h (addImports imports_manager)
