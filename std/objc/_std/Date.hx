@@ -29,66 +29,72 @@ typedef NSDateComponents = Dynamic;
 
 @:framework("Foundation") @:category("NSDate") @:coreApi class Date {
 
-	private var _seconds :Float;
-	private var _calendar :NSCalendar;
-	private var _components :NSDateComponents;
+//	private var _seconds :Float;
+//	private var _calendar :NSCalendar;
+//	private var _components :NSDateComponents;
 
 	public function new (year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) :Void {
 		
-		_calendar = NSCalendar.currentCalendar();
+		var calendar = NSCalendar.currentCalendar();
 		// This is an Int enum in objc
-		_components = _calendar.components (untyped NSYearCalendarUnit | 
+		var components = calendar.components (untyped NSYearCalendarUnit | 
 											NSMonthCalendarUnit | 
 											NSDayCalendarUnit | 
 											NSHourCalendarUnit | 
 											NSMinuteCalendarUnit | 
 											NSSecondCalendarUnit, NSDate.date());
-		_components.setYear ( year );
-		_components.setMonth ( month );
-		_components.setDay ( day );
-		_components.setHour ( hour );
-		_components.setMinute ( min );
-		_components.setSecond ( sec );
+		components.setYear ( year );
+		components.setMonth ( month );
+		components.setDay ( day );
+		components.setHour ( hour );
+		components.setMinute ( min );
+		components.setSecond ( sec );
 		
-		untyped __objc__("self = [self._calendar dateFromComponents:self._components]");
+		untyped __objc__("self = [self.calendar dateFromComponents:components]");
 	}
 
 	public function getTime() : Float {
-		return _seconds * 1000.0;
+		return untyped __objc__("[self timeIntervalSince1970]") * 1000.0;
 	}
 
-	public function getHours() : Int { return _components.hour(); }
+	public function getHours() : Int { 
+		return untyped __objc__("[[[NSCalendar currentCalendar] components:NSHourCalendarUnit fromDate:self] hour]"); 
+	}
 
-	public function getMinutes() : Int { return _components.minute(); }
+	public function getMinutes() : Int {
+		return untyped __objc__("[[[NSCalendar currentCalendar] components:NSMinuteCalendarUnit fromDate:self] minute]"); 	
+	}
 
-	public function getSeconds() : Int { return _components.second(); }
+	public function getSeconds() : Int {
+		return untyped __objc__("[[[NSCalendar currentCalendar] components:NSSecondCalendarUnit fromDate:self] second]"); 	
+	}
 
-	public function getFullYear() : Int { return _components.year(); }
+	public function getFullYear() : Int {
+		return untyped __objc__("[[[NSCalendar currentCalendar] components:NSYearCalendarUnit fromDate:self] year]"); 	
+	}
 
-	public function getMonth() : Int { return _components.month(); }
+	public function getMonth() : Int {
+		return untyped __objc__("[[[NSCalendar currentCalendar] components:NSMonthCalendarUnit fromDate:self] month]"); 
+	}
 
-	public function getDate() : Int { return _components.weekday(); }
+	public function getDate() : Int {
+		return untyped __objc__("[[[NSCalendar currentCalendar] components:NSDayCalendarUnit fromDate:self] day]"); 
+	}
 
-	public function getDay() : Int { return _components.day(); }
+	public function getDay() : Int {
+		return untyped __objc__("[[[NSCalendar currentCalendar] components:NSWeekdayCalendarUnit fromDate:self] weekday]"); 
+	}
 
-	public function toString():String { return null; }
+	public function toString():String { 
+		return untyped __objc__("[self description]");
+	}
 
 	public static function now() : Date {
-		var calendar = NSCalendar.currentCalendar();
-		var components = calendar.components (untyped NSYearCalendarUnit | 
-												NSMonthCalendarUnit | 
-												NSDayCalendarUnit | 
-												NSHourCalendarUnit | 
-												NSMinuteCalendarUnit | 
-												NSSecondCalendarUnit, NSDate.date());
-												
-		return new Date (components.year(),components.month(),components.day(),components.hour(),components.minute(),components.second());
+		return untyped __objc__("[NSDate date]");
 	}
 
 	public static function fromTime( t : Float ) : Date {
-		var result = new Date(0,0,0,0,0,0);
-		result._seconds = t*0.001;
-		return result;
+		return untyped __objc__("[NSDate dateWithTimeIntervalSince1970:t]");
 	}
 
 	public static function fromString( s : String ) : Date {
