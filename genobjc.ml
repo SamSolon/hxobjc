@@ -598,7 +598,7 @@ let isPointer t =
 	match t with
 	| "void" | "id" | "BOOL" | "int" | "uint" | "float" | "CGRect" | "CGPoint" | "CGSize" | "SEL" | "CGImageRef" 
 	| "NSRange"	-> false
-	| _ -> true
+	| _ -> if (String.sub t 0 2 = "id") then false else true
 	(* TODO: enum is not pointer *)
 ;;
 let addPointerIfNeeded t =
@@ -757,7 +757,9 @@ let rec typeToString ctx t p =
 		else (match c.cl_kind with
 		| KNormal | KGeneric | KGenericInstance _ ->
 			ctx.imports_manager#add_class c;
-			remapHaxeTypeToObjc ctx false c.cl_path p
+			(if c.cl_interface then "id<" else "") 
+			^remapHaxeTypeToObjc ctx false c.cl_path p
+			^(if c.cl_interface then ">" else "")
 		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType | KAbstractImpl _ -> "id")
 	| TFun (args, ret) ->
 		let r = ref "" in
