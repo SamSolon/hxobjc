@@ -2049,7 +2049,7 @@ and generateExpression ctx e =
 
 		ctx.writer#write "} mutableCopy]";
 *)
-    ctx.writer#write("^");
+    ctx.writer#write("^id");
     ctx.writer#begin_block;
   	ctx.writer#write("Class dynclass = objc_allocateClassPair([NSObject class], \"DynClass\", 0)");
 		ctx.writer#terminate_line;
