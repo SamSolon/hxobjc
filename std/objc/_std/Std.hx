@@ -45,7 +45,7 @@
 	}
 
 	public static function parseFloat( x : String ) : Float {
-		return untyped x.floatValue();
+		return untyped __objc__("[x floatValue]");
 	}
 
 	public static function random( x : Int ) : Int {
