@@ -847,6 +847,9 @@ let rec addImports imgr ctx _ tclass_field =
 	let rec handle_t t =
 		match follow t with
 		| TInst(tclass, _) -> imgr#add_class tclass
+		| TFun(l, t) ->
+			handle_t t;
+			List.iter(fun(_, _, t) -> handle_t t) l
 		| TAbstract(tabstract, _) -> (match tabstract.a_impl with Some tclass -> imgr#add_class tclass | _ -> ())
 		| _ -> () in
 	let rec loop e = (
