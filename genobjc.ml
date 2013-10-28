@@ -134,7 +134,7 @@ class importsManager =
 		end else if (Meta.has Meta.Framework a_def.a_meta) then begin
 			let name = getFirstMetaValue Meta.Framework a_def.a_meta in
 			this#add_framework name;
-		end else begin
+		end else if not(Meta.has Meta.RuntimeValue a_def.a_meta) then begin
 			this#add_class_path a_def.a_module.m_path;
 		end
 
