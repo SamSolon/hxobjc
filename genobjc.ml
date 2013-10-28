@@ -1006,7 +1006,7 @@ let defaultValue s =
 
 (* A function header in objc is a message *)
 (* We need to follow some strict rules *)
-let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_static kind =
+let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static kind =
 	(* ctx.writer#write ("gen-func-"); *)
 	let old = ctx.in_value in
 	let locals = saveLocals ctx in
@@ -1017,7 +1017,7 @@ let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_stat
 	let first_arg = ref true in
 	let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 	let sel_arr = Array.of_list sel_list in
-	let return_type = if ctx.generating_constructor then "id" else typeToString ctx f.tf_type pos in
+	let return_type = if ctx.generating_constructor then "id" else typeToString ctx ft pos in
 	(* This part generates the name of the function, the first part of the objc message *)
 	let func_name = if Array.length sel_arr > 1 then sel_arr.(0) else begin
 		(match name with None -> "" | Some (n,meta) ->
@@ -1041,7 +1041,7 @@ let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_stat
 			ctx.writer#write (Printf.sprintf "%s%s" return_type (addPointerIfNeeded return_type))
 			
 		| HeaderBlockInline ->
-			let s_t = typeToString ctx f.tf_type null in
+			let s_t = typeToString ctx ft null in
 			ctx.writer#write ("^" ^ s_t ^ (addPointerIfNeeded s_t))
 
 		| HeaderDynamic ->
@@ -1069,7 +1069,7 @@ let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_stat
 					| None -> ();(* Hashtbl.add ctx.function_arguments arg_name (defaultValue arg_name) *)
 					| Some c -> Hashtbl.add ctx.function_arguments arg_name c
 				end
-			) f.tf_args;
+			) args;
 			
 		| HeaderObjcWithoutParams ->
 			concat ctx " " (fun (v,c) ->
@@ -1081,19 +1081,19 @@ let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_stat
 					| None -> ();(* Hashtbl.add ctx.function_arguments arg_name (defaultValue arg_name) *)
 					| Some c -> Hashtbl.add ctx.function_arguments arg_name c
 				end
-			) f.tf_args;
+			) args;
 			
 		| HeaderBlock ->
 			ctx.writer#write "(";
 			concat ctx ", " (fun (v,c) ->
 				let type_name = typeToString ctx v.v_type pos in
 				ctx.writer#write (Printf.sprintf "%s%s" type_name (addPointerIfNeeded type_name));
-			) f.tf_args;
+			) args;
 			ctx.writer#write ")";
 			
 		| HeaderBlockInline ->
 			(* Inlined blocks require pointers? *)
-			ctx.writer#write("(id self"^(if List.length(f.tf_args) > 0 then "," else ""));
+			ctx.writer#write("(id self"^(if List.length(args) > 0 then "," else ""));
 			
 			concat ctx ", " (fun (v,c) ->
 				let type_name = typeToString ctx v.v_type pos in
@@ -1105,7 +1105,7 @@ let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_stat
 					| None -> ();(* Hashtbl.add ctx.function_arguments arg_name (defaultValue arg_name) *)
 					| Some c -> Hashtbl.add ctx.function_arguments arg_name c
 				end *)
-			) f.tf_args;
+			) args;
 			ctx.writer#write ")";
 
 		| HeaderDynamic ->
@@ -1115,7 +1115,7 @@ let generateFunctionHeader ctx name (meta:metadata) (f:tfunc) params pos is_stat
 				let type_name = typeToString ctx v.v_type pos in
 				(* let arg_name = (remapKeyword v.v_name) in *)
 				ctx.writer#write (Printf.sprintf "%s%s" type_name (addPointerIfNeeded type_name));
-			) f.tf_args;
+			) args;
 			ctx.writer#write ")";
 	);
 	(* Generate the block version of the method. When we pass a reference to a function we pass to this block *)
@@ -1963,13 +1963,13 @@ and generateExpression ctx e =
 		let semicolon = ctx.generating_objc_block_asign in
 		if ctx.generating_object_declaration then begin
 			ctx.generating_objc_block <- true;
-			let h = generateFunctionHeader ctx None [] f [] e.epos ctx.in_static HeaderBlockInline in
+			let h = generateFunctionHeader ctx None [] f.tf_type f.tf_args [] e.epos ctx.in_static HeaderBlockInline in
 			ctx.generating_objc_block <- false;
 			generateExpression ctx f.tf_expr;
 			h();
 		end else begin
 			ctx.generating_objc_block <- true;
-			let h = generateFunctionHeader ctx None [] f [] e.epos ctx.in_static HeaderBlockInline in
+			let h = generateFunctionHeader ctx None [] f.tf_type f.tf_args [] e.epos ctx.in_static HeaderBlockInline in
 			let old = ctx.in_static in
 			ctx.in_static <- true;
 			ctx.generating_objc_block <- false;
@@ -2942,7 +2942,9 @@ let processFields ctx f =
 ;;
 
 let generateField ctx is_static field =
-	debug ctx ("\n-F-");
+	debug ctx ("\n-F:" ^ field.cf_name 
+	^ " " ^ (s_kind field.cf_kind) 
+	^ ":" ^ (s_fun (print_context()) field.cf_type true) ^ (match field.cf_expr with Some expr -> s_expr (s_type(print_context())) expr | _ -> "") ^ "-");
 	ctx.writer#new_line;
 	ctx.in_static <- is_static;
 	ctx.gen_uid <- 0;
@@ -2981,7 +2983,7 @@ let generateField ctx is_static field =
 		end
 		else begin
 			(* Generate function header *)
-			let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func field.cf_params pos is_static HeaderObjc in
+			let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func.tf_type func.tf_args field.cf_params pos is_static HeaderObjc in
 			h();
 			(* Generate function content if is not a header file *)
 			if not ctx.generating_header then begin
@@ -2998,10 +3000,16 @@ let generateField ctx is_static field =
 			end else
 				ctx.writer#write ";";
 		end
+	| None, Method(MethNormal) ->
+		let mktvar name t = {v_id=0; v_name=name; v_type=t; v_capture=false; v_extra=(None,false)} in
+		let args = List.map (fun (name,_, t) -> mktvar name t, None) (match field.cf_type with TFun(l, _) -> l | _ -> []) in 
+		let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta field.cf_type args field.cf_params pos is_static HeaderObjc in
+		h();
+		ctx.writer#terminate_line
 	| Some { eexpr = TFunction func }, Method (MethDynamic) ->
 		ctx.writer#write "// Dynamic method defined with an objc method and a block property\n";
 		(* Generate function header *)
-		let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func field.cf_params pos is_static HeaderObjc in
+		let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func.tf_type func.tf_args field.cf_params pos is_static HeaderObjc in
 		h();
 		ctx.generating_objc_block <- true;
 		
@@ -3028,7 +3036,7 @@ let generateField ctx is_static field =
 			
 		if ctx.generating_header then begin
 			ctx.writer#write (Printf.sprintf "@property (nonatomic,copy) ");
-			let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func field.cf_params pos is_static HeaderDynamic in h();
+			let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func.tf_type func.tf_args field.cf_params pos is_static HeaderDynamic in h();
 			ctx.writer#write ";";
 		end else begin
 			ctx.writer#write (Printf.sprintf "\n@synthesize hx_dyn_%s;\n" func_name);
