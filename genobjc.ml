@@ -887,14 +887,16 @@ let rec addImports imgr ctx _ tclass_field =
 		| TBlock l ->
 			List.iter(fun texpr -> handle_e texpr) l
 		(* TODO Finish? *)
-		| _ -> () 
+		| _ -> ()(*ctx.writer#write("addImports skipping " ^ (s_expr_kind {eexpr=e; etype=mk_mono(); epos=tclass_field.cf_pos}) ^ "\n");*)
+
 	) in
 	handle_t tclass_field.cf_type;
-	match tclass_field.cf_expr with 
+	(match tclass_field.cf_expr with 
 	| Some texpr ->
 		handle_t texpr.etype;
 		loop texpr.eexpr
-	| _ -> ();
+	| _ -> ());
+	handle_t tclass_field.cf_type
 ;;
 
 let rec iterSwitchBreak in_switch e =
