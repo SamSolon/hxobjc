@@ -74,8 +74,8 @@ class importsManager =
 	val mutable all_frameworks : string list = []
 	val mutable class_frameworks : string list = []
 	val mutable class_imports : path list = []
+	val mutable class_import_modules : module_def list = []
 	val mutable class_imports_custom : string list = []
-	val mutable class_forwards : string list  =  []
 	val mutable my_path : path = ([],"")
 	method add_class_path (class_path:path) = match class_path with
 		| ([],"StdTypes")
@@ -90,17 +90,14 @@ class importsManager =
 		if (Meta.has Meta.Framework class_def.cl_meta) then begin
 			let name = getFirstMetaValue Meta.Framework class_def.cl_meta in
 			this#add_framework name;
-		end else begin
-			(* Check for include cycle so we can generate a forward reference *)
-			(* Only checks one level deep *)
-			PMap.iter (fun _ v -> 
-				if (v.m_path = my_path) then begin
-					match v.m_path with
-					| _, class_name ->
-						if not (List.mem class_name class_forwards) then class_forwards <- List.append class_forwards [class_name]
-				end) class_def.cl_module.m_extra.m_deps;
+		end else begin 
 			this#add_class_path class_def.cl_module.m_path;
-		end
+			if not(List.mem class_def.cl_module class_import_modules) then begin
+				(*print_endline("~~~~~~~~~~ Adding module " ^ (joinClassPath class_def.cl_module.m_path "."));*)
+				class_import_modules <- class_def.cl_module::class_import_modules
+			end
+		end;
+		
 	method add_abstract (a_def:tabstract) (pl:tparams) =
 		(*print_endline("   add_abstract " ^ (joinClassPath a_def.a_path "."));*)
 		(* Generate a reference to the underlying class instead???? *)
@@ -149,8 +146,11 @@ class importsManager =
 	method get_class_frameworks = class_frameworks
 	method get_imports = class_imports
 	method get_imports_custom = class_imports_custom
-	method get_class_forwards = class_forwards
-	method reset (path) = class_frameworks <- []; class_imports <- []; class_imports_custom <- []; class_forwards <- []; my_path <- path
+	method get_class_import_modules = class_import_modules
+	method get_my_path = my_path
+	method reset (path) = class_frameworks <- []; class_imports <- []; class_imports_custom <- []; my_path <- path; class_import_modules <- []
+	
+
 end;;
 
 class filesManager imports_manager app_name =
@@ -3955,11 +3955,41 @@ let generateImplementation ctx files_manager imports_manager =
 	ctx.writer#write "\n\n@end\n"
 ;;	
 
-let generateHeader ctx files_manager imports_manager =
+	let generate_forwards ctx imports_manager =
+		let s_p path = match path with _, n -> n in
+		let my_path = imports_manager#get_my_path in
+			let addforward dep =
+				let forwardname = 
+					(if List.exists(
+						function 
+							| TClassDecl tclass -> tclass.cl_interface 
+							| _ -> false) dep.m_types 
+					then "@protocol " else "@class ") ^ (match dep.m_path with | _, n -> n) in
+					ctx.writer#write(forwardname);
+					ctx.writer#write(";");
+					ctx.writer#new_line in
+				
+			(* Check for include cycle so we can generate a forward reference *)
+			let rec isRecursiveImport start_path visited_paths dep trail =
+				if Hashtbl.mem visited_paths dep.m_path then begin
+					false (* break include cycle *)
+				end else begin (* check dep path and any of its dependencies *) 
+					Hashtbl.add visited_paths dep.m_path true;
+					dep.m_path = start_path || PMap.foldi(fun _ chkdep  a-> a || isRecursiveImport start_path visited_paths chkdep (trail ^ ":" ^ (s_p dep.m_path))) dep.m_extra.m_deps false
+				end in
+			List.iter(fun depmod -> 
+				PMap.iter (fun _ dep ->
+					if isRecursiveImport my_path (Hashtbl.create 32) dep "" then addforward dep;
+				) depmod.m_extra.m_deps
+			) imports_manager#get_class_import_modules
+	;;
+
+	let generateHeader ctx files_manager imports_manager =
 	ctx.generating_header <- true;
 	
 	(* Generate any forward class references *)
-	List.iter (fun n -> ctx.writer#write("@class " ^ n); ctx.writer#terminate_line ) imports_manager#get_class_forwards;
+(*	List.iter (fun n -> ctx.writer#write(n); ctx.writer#terminate_line ) imports_manager#get_class_forwards;*)
+	generate_forwards ctx imports_manager;
 	
 	(* Import the super class *)
 	(match ctx.class_def.cl_super with
