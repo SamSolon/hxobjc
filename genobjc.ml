@@ -2725,6 +2725,7 @@ let generateProperty ctx field pos is_static =
 				
 	let id = field.cf_name in
 	let t = typeToString ctx field.cf_type pos in
+	let is_usetter = (match field.cf_kind with Var({v_write=AccCall}) -> true | _ -> false) in 
 	(* let class_name = (snd ctx.class_def.cl_path) in *)
 	if ctx.generating_header then begin
 		if is_static then begin
@@ -2739,7 +2740,7 @@ let generateProperty ctx field pos is_static =
 			| _ -> "" in
 			let setter = match field.cf_kind with
 			| Var v -> (match v.v_write with
-				| AccCall -> Printf.sprintf ", setter=set_%s:" field.cf_name;
+				| AccCall -> Printf.sprintf ", setter=set__%s:" field.cf_name;
 				| _ -> "")
 			| _ -> "" in
 			let is_enum = (match field.cf_type with
@@ -2747,7 +2748,12 @@ let generateProperty ctx field pos is_static =
 				| _ -> false) in
 			let strong = if Meta.has Meta.Weak field.cf_meta then ", weak" else if is_enum then "" else if (isPointer t) then ", strong" else "" in
 			let readonly = if false then ", readonly" else "" in
-			ctx.writer#write (Printf.sprintf "@property (nonatomic%s%s%s%s) %s %s%s;" strong readonly getter setter t (addPointerIfNeeded t) (remapKeyword id))
+			ctx.writer#write (Printf.sprintf "@property (nonatomic%s%s%s%s) %s %s%s;" strong readonly getter setter t (addPointerIfNeeded t) (remapKeyword id));
+			(* Objective-C doesn't allow setters to return a value so wrap any explicit setter to return void *)
+			if is_usetter then begin
+				ctx.writer#new_line;
+				ctx.writer#write("- (void) set__" ^ field.cf_name ^ ":(" ^ t ^ (addPointerIfNeeded t) ^ ")" ^ (remapKeyword id) ^ ";")
+			end
 		end
 	end
 	else begin
@@ -2782,7 +2788,11 @@ let generateProperty ctx field pos is_static =
 				end else
 					ctx.writer#write ("// Please provide a getterBody for the property: "^id^"\n");
 			end else begin
-				ctx.writer#write (Printf.sprintf "@synthesize %s;" (remapKeyword id))
+				ctx.writer#write (Printf.sprintf "@synthesize %s;" (remapKeyword id));
+				if is_usetter then begin
+					ctx.writer#new_line;
+					ctx.writer#write("- (void) set__" ^ id ^ ":(" ^ t ^ (addPointerIfNeeded t) ^ ") value { [self set_" ^ id ^ ":value];}");
+				end
 			end
 		end;
 	end
