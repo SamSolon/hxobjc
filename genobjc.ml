@@ -1842,9 +1842,9 @@ and generateExpression ctx e =
 				);
 			end
 			
-		| FEnum (tenum,tenum_field) -> (* ctx.writer#write "-FEnum-"; *)
-			generateValue ctx e;
-			ctx.writer#write (field_name fa)
+		| FEnum (tenum,tenum_field) ->  (*ctx.writer#write "-FEnum-";*) 
+			ctx.imports_manager#add_enum tenum;
+			ctx.writer#write("[" ^ (joinClassPath tenum.e_path ".") ^ " create:@\"" ^ tenum_field.ef_name ^ "\"]") 
 		);
 		ctx.generating_fields <- ctx.generating_fields - 1;
 		
@@ -2617,6 +2617,7 @@ and generateValue ctx e =
 		| FClosure _ -> 
 			error "Field reference by FClosure not yet implemented" e.epos
 		|	FEnum(tenum, tenum_field) ->
+			ctx.imports_manager#add_enum tenum;
 			generateExpression ctx texpr;
 			ctx.writer#write(" ");
 			debug ctx "-FEnum-";
@@ -2723,6 +2724,8 @@ let generateProperty ctx field pos is_static =
 	(match field.cf_type with
 	| TInst(tclass, _) ->
 		    ctx.imports_manager#add_class(tclass)
+	| TEnum(tenum, _) ->
+				ctx.imports_manager#add_enum(tenum)
 	| _ -> ()); (* TODO:Find the class from other types -- like TMono(t)? *)
 				
 	let id = field.cf_name in
@@ -2746,7 +2749,7 @@ let generateProperty ctx field pos is_static =
 				| _ -> "")
 			| _ -> "" in
 			let is_enum = (match field.cf_type with
-				| TEnum (e,_) -> true
+				| TEnum (e,_) -> ctx.imports_manager#add_enum e; true
 				| _ -> false) in
 			let strong = if Meta.has Meta.Weak field.cf_meta then ", weak" else if is_enum then "" else if (isPointer t) then ", strong" else "" in
 			let readonly = if false then ", readonly" else "" in
