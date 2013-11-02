@@ -826,7 +826,7 @@ let isString ctx e =
 (* We're about to generate something that will yield an object ref, if our caller didn't want an object we'll*)
 (* have to deref based on the type *)
 let startObjectRef ctx e =
-	debug ctx("-startObjectRef " ^ (string_of_bool (require_pointer ctx)));
+	debug ctx("-startObjectRef " ^ (string_of_bool (require_pointer ctx)) ^ " t(" ^ (s_t e.etype) ^ ")");
 	if not(require_pointer ctx) then begin
 		let tstr = typeToString ctx (follow e.etype) null in
 		debug ctx(" " ^ tstr ^ " -");
