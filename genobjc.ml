@@ -607,6 +607,12 @@ let addPointerIfNeeded t =
 	if (isPointer t) then "*" else ""
 ;;
 
+let isValue t =
+	match t with
+	| "int" | "uint" | "float" | "BOOL" -> true
+	| _ -> false
+;;
+
 let is_message_target tfield_access =
 	(* Assume anything that isn't a struct can be a message target *) 
 	let is_struct meta = Meta.has Meta.Struct meta in 
@@ -764,6 +770,7 @@ let rec typeToString ctx t p =
 			^(if c.cl_interface then ">" else "")
 		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType | KAbstractImpl _ -> "id")
 	| TFun (args, ret) ->
+		debug ctx("\"-typeToString(TFun) of ");
 		let r = ref "" in
 		let index = ref 0 in
 		List.iter ( fun (name, b, t) ->
@@ -772,13 +779,14 @@ let rec typeToString ctx t p =
 			(* if Array.length sel_arr > 0 then
 				r := !r ^ (" "^sel_arr.(!index)^":")
 			else *)
+			debug ctx(name ^ "->");
 				r := !r ^ name;(* (if !index = 0 then ":" else (" "^(remapKeyword name)^":")); *)
 			(* generateValue ctx args_array_e.(!index); *)
 			index := !index + 1;
 		) args;
 		(* Write the type of a function, the block definition *)
 		(* !r *)
-		"id"
+		typeToString ctx ret p	
 	| TMono r -> (match !r with None -> "id" | Some t -> typeToString ctx t p)
 	| TAnon anon -> "id"
 	| TDynamic _ -> "id"
@@ -2479,7 +2487,10 @@ and generateExpression ctx e =
 	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
 		(* ctx.return_needs_semicolon <- true; *)
-		ctx.writer#write "switch"; generateValue ctx (parent e); ctx.writer#begin_block;
+		ctx.writer#write "switch"; 
+		push_require_pointer ctx false;
+		generateValue ctx (parent e); ctx.writer#begin_block;
+		pop_require_pointer ctx;
 		List.iter (fun (el,e2) ->
 			List.iter (fun e ->
 				ctx.writer#write "case "; generateValue ctx e; ctx.writer#write ":";
@@ -2643,9 +2654,24 @@ and generateValue ctx e =
 		ctx.writer#write("|generateValue|" ^ (Type.s_expr_kind e));*)
 		generateExpression ctx e
 	| TCast (e1,t) ->
-		let t = typeToString ctx e.etype e.epos in
-		ctx.writer#write (Printf.sprintf "(%s%s)" t (addPointerIfNeeded t));
-		generateValue ctx e1;
+		let t = (typeToString ctx e.etype e.epos) in
+		let te1 = (typeToString ctx e1.etype e.epos) in
+		debug ctx ("TCast from " ^ te1 ^ " to " ^ t);
+		if te1 = "id" && isValue (t) then begin(* deref a value *)
+			let deref m = 
+				ctx.writer#write("[");
+				generateExpression ctx e1;
+				ctx.writer#write(" " ^ m ^ "]") in
+			match t with
+			| "int" -> deref "intValue"
+			| "uint"
+			| "BOOL" -> deref "unsignedIntValue"
+			| "float" -> deref "floatValue"
+			| _ -> error("Unhandled cast from " ^ t ^ " to " ^ te1) e.epos
+		end else begin (* no conversion cast *)
+			ctx.writer#write (Printf.sprintf "(%s%s)" t (addPointerIfNeeded t));
+			generateValue ctx e1;
+		end
 		(* match t with
 		| None ->
 		generateValue ctx e1
