@@ -3895,6 +3895,62 @@ let generatePlist common_ctx file_info  =
 	file#close
 ;;
 
+let generateEnumHeader ctx enum_def =
+	let enumt = match enum_def.e_path with _,n -> n in
+	ctx.writer#write("@interface " ^ enumt ^  ":NSObject
+@property(readonly) int _Index;
++(id)create:(NSString*)ctor;
++(id)create:(NSString*)ctor withParams:(NSArray*)params;
++(id)withIndex:(int)index;
+@end\n\n")
+;;
+
+let generateEnumBody ctx enum_def =
+	let enumt = match enum_def.e_path with _,n -> n in
+	ctx.writer#new_line;
+	ctx.writer#write("@implementation " ^ enumt ^ "
+
+NSArray *ctors;
+NSMutableDictionary *ctorbyname;
+
++(void)initialize {
+	ctors = [NSArray arrayWithObjects:");
+	List.iter(fun n -> ctx.writer#write("@\"" ^ n ^ "\",")) enum_def.e_names;
+	ctx.writer#write("nil];
+	ctorbyname = [[NSMutableDictionary alloc] init];
+	[ctors enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+			[ctorbyname setObject:[NSNumber numberWithUnsignedLong:idx] forKey:obj];
+		}];
+}
+
++(id)create:(NSString*)ctor {
+	[self create:ctor withParams:nil];
+}
+
++(id)create:(NSString*)ctor withParams:(NSArray*)params {
+	NSNumber *index = [ctorbyname objectForKey:ctor];
+	if (!index) {
+		NSString *reason = [NSString stringWithFormat:@\"Invalid CTOR %@ for class %@\", ctor, @\"" ^ enumt ^ "\"];
+		@throw [NSException exceptionWithName:@\"Invalid CTOR\" reason:reason userInfo:nil];
+	}
+	
+	return [self withIndex:[index intValue]];
+}
+
++(id)withIndex:(int)index {
+	id ret = [[self alloc] initWithEnumIndex:index];
+	return ret;
+}
+
+-(id)initWithEnumIndex:(int)index {
+	self = [self init];
+	__Index = index;
+	return self;
+}
+@end
+
+")
+;;	
 (* Generate the enum. ctx should be the header file *)
 let generateEnum ctx enum_def =
 	(* print_endline ("> Generating enum : "^(snd enum_def.e_path)); *)
@@ -4164,23 +4220,38 @@ let generate common_ctx =
 		
 		| TEnumDecl enum_def ->
 			if not enum_def.e_extern then begin
-				let module_path = enum_def.e_module.m_path in
-				(* let class_path = enum_def.e_path in *)
-				let is_new_module = (m.module_path_h != module_path) in
-				print_endline ("> Generating enum : "^(snd enum_def.e_path)^" in module : "^(snd module_path));
+				let class_path = enum_def.e_path in
+				let is_new_module = (m.module_path_h != class_path) in
+(*				print_endline ("> Generating enum : "^(snd enum_def.e_path)^" in module : "^(snd module_path));*)
+				print_endline ("> Generating enum : "^(joinClassPath enum_def.e_path ".")^" in module : "^(joinClassPath enum_def.e_module.m_path "."));
 				if is_new_module then begin
 					(* print_endline ("> New module for enum : "^(snd module_path)); *)
 					m.ctx_m.writer#close;
 					m.ctx_h.writer#close;
-					m.module_path_h <- module_path;
-					
-					let file_h = newSourceFile src_dir module_path ".h" in
+					m.module_path_m <- class_path;
+					m.module_path_h <- class_path;
+
+					files_manager#register_source_file class_path ".m";
+					let file_m = newSourceFile src_dir class_path ".m" in
+					let ctx_m = newContext common_ctx file_m imports_manager file_info in
+					m.ctx_m <- ctx_m;
+
+					(* Import header *)
+					m.ctx_m.writer#write_copy class_path (appName common_ctx);
+					m.ctx_m.writer#write_header_import class_path class_path;
+
+					files_manager#register_source_file class_path ".h";
+					let file_h = newSourceFile src_dir class_path ".h" in
 					let ctx_h = newContext common_ctx file_h imports_manager file_info in
+					
 					m.ctx_h <- ctx_h;
-					m.ctx_h.writer#write_copy module_path (appName common_ctx);
-					m.ctx_h.generating_header <- true;
+					m.ctx_h.writer#write_copy class_path (appName common_ctx);
 				end;
-				generateEnum m.ctx_h enum_def;
+				generateEnumBody m.ctx_m enum_def;
+
+				m.ctx_h.generating_header <- true;
+				generateEnumHeader m.ctx_h enum_def;
+				
 			end;
 		| TTypeDecl _ ->
 			()
