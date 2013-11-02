@@ -2520,7 +2520,8 @@ and generateExpression ctx e =
 	| TCast (e1,Some t) -> 
 		ctx.writer#write "-CASTSomeType-"
 	| TMeta (_,e) -> 
-		ctx.writer#write "-TMeta-";
+		(*let s_type = Type.s_type(print_context()) in
+		ctx.writer#write("-TMeta-" ^ (s_expr s_type e));*)
 		generateValue ctx e
 		(* generateExpression ctx (Codegen.default_cast ctx.common_ctx e1 t e.etype e.epos) *)
 
