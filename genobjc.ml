@@ -852,66 +852,6 @@ let endObjectRef ctx e =
 		end
 ;;
 
-(* Add any needed imports for tclass_field *)
-let rec addImports imgr ctx _ tclass_field =
-	let rec handle_t t =
-		match follow t with
-		| TInst(tclass, _) -> imgr#add_class tclass
-		| TFun(l, t) ->
-			handle_t t;
-			List.iter(fun(_, _, t) -> handle_t t) l
-		| TAbstract(tabstract, _) -> (match tabstract.a_impl with Some tclass -> imgr#add_class tclass | _ -> ())
-		| _ -> () in
-	let rec loop e = (
-		let rec handle_e expr =
-			handle_t expr.etype;
-			loop expr.eexpr in
-		match e with
-		| TLocal tvar -> 
-			handle_t tvar.v_type
-		
-		| TField(texpr, _)
-		| TUnop(_, _, texpr)
- 		| TParenthesis (texpr) -> 
-			handle_e texpr
-		
-		| TArray(e1, e2)
-		| TBinop(_, e1, e2) ->
-			handle_e e1; 
-			handle_e e2
-		
-		| TNew(tclass, _, _) -> 
-			imgr#add_class tclass
-		
-		| TCall(expr, exprl) ->
-			handle_e expr;
-			List.iter ( fun ei -> handle_e ei) exprl
-		
-		| TFunction tfunc ->
-			handle_t tfunc.tf_type;
-			handle_e tfunc.tf_expr
-		
-		| TVars l ->
-			List.iter(fun(tvar, texpr) ->
-				handle_t tvar.v_type;
-				match texpr with Some t -> handle_t t.etype | _ -> ()
-			) l
-
-		| TBlock l ->
-			List.iter(fun texpr -> handle_e texpr) l
-		(* TODO Finish? *)
-		| _ -> ()(*ctx.writer#write("addImports skipping " ^ (s_expr_kind {eexpr=e; etype=mk_mono(); epos=tclass_field.cf_pos}) ^ "\n");*)
-
-	) in
-	handle_t tclass_field.cf_type;
-	(match tclass_field.cf_expr with 
-	| Some texpr ->
-		handle_t texpr.etype;
-		loop texpr.eexpr
-	| _ -> ());
-	handle_t tclass_field.cf_type
-;;
-
 let rec iterSwitchBreak in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
@@ -4208,23 +4148,26 @@ let generate common_ctx =
 					m.ctx_m.writer#close;
 					m.module_path_m <- module_path;
 					
-					if not class_def.cl_interface then begin
-						(* Create the implementation file only for classes, not protocols *)
-						files_manager#register_source_file module_path ".m";
-						let file_m = newSourceFile src_dir module_path ".m" in
-						let ctx_m = newContext common_ctx file_m imports_manager file_info in
-						m.ctx_m <- ctx_m;
-						m.ctx_m.is_category <- is_category;
+					let file_m = 
+						(if not class_def.cl_interface then begin
+							(* Create the implementation file only for classes, not protocols *)
+							files_manager#register_source_file module_path ".m";
+							newSourceFile src_dir module_path ".m"
+						end else
+							new sourceWriter (fun s -> ()) (fun () -> ())) in
+							
+					let ctx_m = newContext common_ctx file_m imports_manager file_info in
+					m.ctx_m <- ctx_m;
+					m.ctx_m.is_category <- is_category;
 						
-						(* Import header *)
-						m.ctx_m.writer#write_copy module_path (appName common_ctx);
-						m.ctx_m.writer#write_header_import module_path module_path;
-					end;
+					(* Import header *)
+					m.ctx_m.writer#write_copy module_path (appName common_ctx);
+					m.ctx_m.writer#write_header_import module_path module_path;
+
 				end;
-				if not class_def.cl_interface then begin
-					m.ctx_m.class_def <- class_def;
-					generateImplementation m.ctx_m files_manager imports_manager;
-				end;
+
+ 				m.ctx_m.class_def <- class_def;
+				generateImplementation m.ctx_m files_manager imports_manager;
 				
 				(* Generate header *)
 				(* If it's a new module close the old files and create new ones *)
@@ -4241,12 +4184,6 @@ let generate common_ctx =
 					m.ctx_h.writer#write_copy module_path (appName common_ctx);
 				end;
 				m.ctx_h.class_def <- class_def;
-				(* Add any implemented interfaces to the imports *)
-				List.iter(fun (i,_) -> imports_manager#add_class i) m.ctx_h.class_def.cl_implements;
-				if class_def.cl_interface then begin
-					m.ctx_h.is_protocol <- true;
-					processFields m.ctx_h (addImports imports_manager)
-				end;
 				generateHeader m.ctx_h files_manager imports_manager;
 			end
 		
