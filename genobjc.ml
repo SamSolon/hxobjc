@@ -4025,6 +4025,9 @@ let generateImplementation ctx files_manager imports_manager =
 		| Some (csup,_) -> ctx.imports_manager#add_class csup
 	);
 	
+	(* Import interfaces *)
+	List.iter (fun(i, _) -> imports_manager#add_class i) ctx.class_def.cl_implements;
+
 	(* Import custom classes *)
 	if (Meta.has Meta.Import ctx.class_def.cl_meta) then begin
 		let import_statements = getAllMetaValues Meta.Import ctx.class_def.cl_meta in
