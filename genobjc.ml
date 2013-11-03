@@ -86,7 +86,8 @@ class importsManager =
 		| ([],"Bool") -> ();
 		| _ -> if not (List.mem class_path class_imports) then class_imports <- List.append class_imports [class_path];
 	method add_enum(enum:tenum) =
-		this#add_class_path enum.e_path
+		if not(Meta.has Meta.FakeEnum enum.e_meta) then
+			this#add_class_path enum.e_path
 	method add_class (class_def:tclass) = 
 		(*print_endline("   add_class " ^ (joinClassPath class_def.cl_path "."));*)
 		if (Meta.has Meta.Framework class_def.cl_meta) then begin
@@ -1791,8 +1792,12 @@ and generateExpression ctx e =
 			end
 			
 		| FEnum (tenum,tenum_field) ->  (*ctx.writer#write "-FEnum-";*) 
-			ctx.imports_manager#add_enum tenum;
-			ctx.writer#write("[" ^ (joinClassPath tenum.e_path ".") ^ " create:@\"" ^ tenum_field.ef_name ^ "\"]") 
+			if (Meta.has Meta.FakeEnum tenum.e_meta) then
+				ctx.writer#write(tenum_field.ef_name)
+			else begin
+				ctx.imports_manager#add_enum tenum;
+				ctx.writer#write("[" ^ (joinClassPath tenum.e_path ".") ^ " create:@\"" ^ tenum_field.ef_name ^ "\"]")
+			end 
 		);
 		ctx.generating_fields <- ctx.generating_fields - 1;
 		
