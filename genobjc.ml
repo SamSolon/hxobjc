@@ -4187,6 +4187,7 @@ let generate common_ctx =
 					m.ctx_h.writer#write_copy module_path (appName common_ctx);
 				end;
 				m.ctx_h.class_def <- class_def;
+				m.ctx_h.is_protocol <- class_def.cl_interface;
 				generateHeader m.ctx_h files_manager imports_manager;
 			end
 		
