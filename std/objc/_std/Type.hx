@@ -39,13 +39,14 @@ enum ValueType {
 @:coreApi
 class Type {
 	public static function getClass<T>( o : T ) : Class<T> untyped {
-		if (o==null || !Reflect.isObject(o))  return null;
-		var c = o.__class();
-		switch(c.toString()){
-			case "__Anon" : return null;
-			case "Class" : return null;
-		}
-		return c;
+		return null;//return untyped __objc__("[o class]");
+//		if (o==null || !Reflect.isObject(o))  return null;
+//		var c = o.__class();
+//		switch(c.toString()){
+//			case "__Anon" : return null;
+//			case "Class" : return null;
+//		}
+//		return c;
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
@@ -91,7 +92,7 @@ class Type {
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
-		return untyped __objc__("[cl alloc]");
+		return null;//untyped __objc__("[cl alloc]");
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
@@ -121,13 +122,22 @@ class Type {
 	public static function typeof( v : Dynamic ) : ValueType untyped {
 /*		http://stackoverflow.com/questions/2518761/get-type-of-nsnumber*/
 		if (v==null) return TNull;
-		if (v.isKindOfClass ( Bool.__class() )) return TBool;
-		else if (v.isKindOfClass ( Int.__class() )) return TInt;
-		else if (v.isKindOfClass ( Float.__class() )) return TFloat;
-		else if (v.isKindOfClass ( TFunction.__class() )) return TFunction;
-		else if (v.isKindOfClass ( TObject.__class() )) return TObject;
-		else if (v.isKindOfClass ( Int.__class() )) return TEnum ( v.__class() );
+
+		if (untyped __objc__("[v isKindOfClass:[NSValue class]]")) {
+			if (untyped __objc__("strstr(\"islqISLQ\", [v objCType]) != NULL")) {return TInt;}
+			else if (untyped __objc__("strstr(\"fd\", [v objCType]) != NULL")) {return TFloat;}
+		}
+		
+		if (untyped __objc__("class_isMetaClass(object_getClass(v))")) { return TClass; }
+		
+//		if (v.isKindOfClass ( Bool.__class() )) return TBool;
+//		else if (v.isKindOfClass ( Int.__class() )) return TInt;
+//		else if (v.isKindOfClass ( Float.__class() )) return TFloat;
+//		else if (v.isKindOfClass ( TFunction.__class() )) return TFunction;
+//		else if (v.isKindOfClass ( TObject.__class() )) return TObject;
+//		else if (v.isKindOfClass ( Int.__class() )) return TEnum ( v.__class() );
 		//return TClass ( v.__class() );
+
 		return TNull;
 	}
 
@@ -145,7 +155,7 @@ class Type {
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
-		return untyped e.__Index();
+		return cast(untyped e.__Index(), Int);
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {

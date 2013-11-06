@@ -26,72 +26,94 @@
 @:include("objc/runtime.h")
 @:coreApi class Reflect {
 
-	public  static function hasField( o : Dynamic, field : String ) : Bool {
-		return o.valueForKey ( field ) != null;
+//    @:functionCode('
+//        return [o respondsToSelector:NSSelectorFromString(field)];
+//    ')
+	public static function hasField( o : Dynamic, field : String ) : Bool {
+		return untyped __objc__ ("[o respondsToSelector:NSSelectorFromString(field)]");
+		//return false;
 	}
 
+//    @functionCode('
+//        return [o valueForKey:field];
+//    ')
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		return o.valueForKey ( field );
+		return untyped __objc__("[o valueForKey:field]");
 	}
 
+//    @functionCode('
+//        [o setValue:value forKey:field];
+//    ')
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		o.setValue (value, field);
+		//o.setValue (value, field);
+		untyped __objc__("[o setValue:value forKey:field]");
 	}
 
+//    @functionCode('
+//        return [o valueForKey:field];
+//    ')
 	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
-		return (o==null) ? null : o.hx_field (field,true);
+		//return null;
+		return untyped __objc__("[o valueForKey:field]");
 	}
 
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
-		o.setValue (value, field);//[object setValue: value forKey: key];
+		setField(o, field, value);
 	}
 
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
-		if (func!=null && func.hx_get_type() == __global__.vtString)
-			func = o.hx_field(func,true);
-		untyped func.hx_set_this(o);
-		return untyped func.performSelector ( new SEL(args));
+		//if (func!=null && func.hx_get_type() == __global__.vtString)
+		//	func = o.hx_field(func,true);
+		//untyped func.hx_set_this(o);
+		//return untyped func.performSelector ( new SEL(args));
+		return null;
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> untyped {
 		if( o == null ) return new Array();
 		var a : Array<String> = [];
-		o.hx_get_fields(a);
+		//o.hx_get_fields(a);
 		return a;
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return f!=null && f.hx_get_type() ==  __global__.vtFunction;
+		//return f!=null && f.hx_get_type() ==  __global__.vtFunction;
+		return false;
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
-		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+		//return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+		return -1;
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		if( f1 == f2 )
-			return true;
-		if( !isFunction(f1) || !isFunction(f2) )
-			return false;
-		return untyped __global__.__hxcpp_same_closure(f1,f2);
+		//if( f1 == f2 )
+		//	return true;
+		//if( !isFunction(f1) || !isFunction(f2) )
+		//	return false;
+		//return untyped __global__.__hxcpp_same_closure(f1,f2);
+		return false;
 	}
 
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		if (v==null) return false;
-		var t:Int = v.hx_get_type();
-		return t==__global__.vtObject || 
-			t==__global__.vtClass || 
-			t==__global__.vtString ||
-			t==__global__.vtArray;
+		//var t:Int = v.hx_get_type();
+		//return t==__global__.vtObject || 
+		//	t==__global__.vtClass || 
+		//	t==__global__.vtString ||
+		//	t==__global__.vtArray;
+		return false;
 	}
 	
 	public static function isEnumValue( v : Dynamic ) : Bool untyped {
-		return v!=null && v.__GetType() == __global__.vtEnum;
+		//return v!=null && v.__GetType() == __global__.vtEnum;
+		return false;
 	}
 	
 	public static function deleteField(o:Dynamic, field:String) :Bool untyped {
-		if (o==null) return false;
-		return untyped __global__.__hxcpp_anon_remove(o,f);
+		//if (o==null) return false;
+		//return untyped __global__.__hxcpp_anon_remove(o,f);
+		return false;
 	}
 
 	public static function copy<T>( o : T ) : T {
@@ -99,6 +121,7 @@
 	}
 
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return untyped __global__.__hxcpp_create_var_args(f);
+		//return untyped __global__.__hxcpp_create_var_args(f);
+		return null;
 	}
 }
