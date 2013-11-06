@@ -1107,14 +1107,20 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 (* arg_list is of type Type.texpr list *)
 let rec generateCall ctx (func:texpr) arg_list =
 	debug ctx ("\"-CALL-"^(Type.s_expr_kind func)^">\"");
-	
+	(* Objective c doesn't like to call a block in parens -- so ignore them *)
+	let f:texpr option = match func.eexpr with 
+		| TBlock _-> Some func
+		| TParenthesis(({eexpr = (TBlock _)}) as e) -> Some e 
+		| _ when ctx.generating_c_call -> Some func
+		| _ -> None in
 	(* Generate a C call. Used in some low level operations from cocoa frameworks: CoreGraphics *)
-	if ctx.generating_c_call then begin
+	match f with 
+	| Some f ->
 		debug ctx "-C-";
-		match func.eexpr, arg_list with
+		(match f.eexpr, arg_list with
 		| TCall (x,_) , el ->
 			ctx.writer#write "(";
-			generateValue ctx func;
+			generateValue ctx x;
 			ctx.writer#write ")";
 			ctx.writer#write "(";
 			concat ctx ", " (generateValue ctx) arg_list;
@@ -1127,13 +1133,13 @@ let rec generateCall ctx (func:texpr) arg_list =
 			concat ctx ", " (generateValue ctx) arg_list;
 			ctx.writer#write ")" *)
 		| _ ->
-			generateValue ctx func;
+			generateValue ctx f;
 			ctx.writer#write "(";
 			concat ctx ", " (generateValue ctx) arg_list;
 			ctx.writer#write ")";
-	
+		)
 	(* Generate an Objective-C call with [] *)
-	end else
+	| _ ->(
 		match func.eexpr with
 		| TLocal tvar -> (* Call through a local which we assume holds an array with [selector, object] *)
 			ctx.writer#write("objc_msgSend([" ^ tvar.v_name ^ " objectAtIndex:0], [[" ^ tvar.v_name ^ " objectAtIndex:1] pointerValue]");
@@ -1254,6 +1260,7 @@ let rec generateCall ctx (func:texpr) arg_list =
 			ctx.writer#write "]";
 		end
 	end
+	)
 	
 and generateValueOp ctx e =
 	debug ctx "\"-gen_val_op-\"";
@@ -2650,7 +2657,7 @@ and generateValue ctx e =
 				ctx.writer#terminate_line
 			| [e] ->
 				ctx.writer#write("return ");
-				generateExpression ctx e;
+				generateValue ctx e;
 				ctx.writer#terminate_line;
 			| e :: l ->
 				generateExpression ctx e;
