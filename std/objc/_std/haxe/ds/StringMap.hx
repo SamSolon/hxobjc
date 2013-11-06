@@ -65,13 +65,14 @@ class StringMap<T> implements Map.IMap<String,T> {
 		Returns an iterator of all values in the hashtable.
 	**/
 	public function iterator() : Iterator<T> {
-		var a:Array<String> = untyped this.allValues();
-		var it = a.iterator();
-		var me = this;
-		return untyped {
-			hasNext : function() { return it.hasNext(); },
-			next : function() { return me.__Internal.__Field(it.next(),true); }
-		};
+		var a:Array<T> = untyped __objc__("[NSMutableArray arrayWithArray:[self allValues]]");
+		return a.iterator();
+//		var it = a.iterator();
+//		var me = this;
+//		return untyped {
+//			hasNext : function() { return it.hasNext(); },
+//			next : function() { return me.__Internal.__Field(it.next(),true); }
+//		};
 	}
 
 	/**
