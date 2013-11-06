@@ -1044,7 +1044,8 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 			
 		| HeaderBlockInline ->
 			(* Inlined blocks require pointers? *)
-			ctx.writer#write("(id self"^(if List.length(args) > 0 then "," else ""));
+			let argself = if is_static then "" else "id self" in
+			ctx.writer#write("(" ^ if List.length(args) > 0 then (argself ^ ",") else argself);
 			
 			concat ctx ", " (fun (v,c) ->
 				let type_name = typeToString ctx v.v_type pos in
@@ -1924,13 +1925,14 @@ and generateExpression ctx e =
 			h();
 		end else begin
 			ctx.generating_objc_block <- true;
-			let h = generateFunctionHeader ctx None [] f.tf_type f.tf_args [] e.epos ctx.in_static HeaderBlockInline in
+			let h = generateFunctionHeader ctx None [] f.tf_type f.tf_args [] e.epos true (*ctx.in_static*) HeaderBlockInline in
 			let old = ctx.in_static in
 			ctx.in_static <- true;
 			ctx.generating_objc_block <- false;
 			generateExpression ctx f.tf_expr;
 			ctx.in_static <- old;
 			h();
+			ctx.writer#write("");
 		end;
 		(* if ctx.generating_var && ctx.generating_objc_block_asign then ctx.writer#write ";"; *)
 		if semicolon then begin
