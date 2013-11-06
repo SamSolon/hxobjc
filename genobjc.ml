@@ -1142,11 +1142,13 @@ let rec generateCall ctx (func:texpr) arg_list =
 	| _ ->(
 		match func.eexpr with
 		| TLocal tvar -> (* Call through a local which we assume holds an array with [selector, object] *)
+			ctx.imports_manager#add_class_import_custom("objc/message.h");
 			ctx.writer#write("objc_msgSend([" ^ tvar.v_name ^ " objectAtIndex:0], [[" ^ tvar.v_name ^ " objectAtIndex:1] pointerValue]");
 			List.iter (fun e -> ctx.writer#write(", "); generateValue ctx e) arg_list;
 			ctx.writer#write(")");
 			
 		| TCall (texpr, _) -> 
+			ctx.imports_manager#add_class_import_custom("objc/message.h");
 			ctx.writer#write("objc_msgSend([");
 			generateValue ctx texpr;
 			ctx.writer#write(" objectAtIndex:0], [[");
