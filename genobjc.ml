@@ -1736,7 +1736,7 @@ and generateExpression ctx e =
 				ctx.writer#write(" valueForKey:@\"");
 				(*(*if ctx.generating_calls = 0 then*) ctx.writer#write("valueForKey:@\"") (*else ctx.writer#write(" ")*);*)
 				ctx.writer#write (remapKeyword name);
-				endObjectRef ctx;
+				endObjectRef ctx e;
 				(*ctx.writer#write ("\"");*)
 				ctx.writer#write("\"]");
 			end
