@@ -2498,10 +2498,10 @@ and generateValue ctx e =
 		let t = typeToString ctx e.etype e.epos in
 		let r = alloc_var (genLocal ctx "__r__") e.etype in
 		ctx.in_value <- Some r;
-		if ctx.in_static then
-			ctx.writer#write (Printf.sprintf "(%s%s)^()" t (addPointerIfNeeded t))
-		else
-			ctx.writer#write (Printf.sprintf "((%s)self.%s " t r.v_name);
+(*		if ctx.in_static then*)
+			ctx.writer#write (Printf.sprintf "(%s%s)^()" t (addPointerIfNeeded t));
+(*		else*)
+(*			ctx.writer#write (Printf.sprintf "((%s)self.%s " t r.v_name);*)
 		(fun() ->
 			if block then begin
 				ctx.writer#new_line;
