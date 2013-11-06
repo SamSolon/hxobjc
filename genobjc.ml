@@ -758,7 +758,7 @@ let rec typeToString ctx t p =
 			)
 		else begin
 			(* Import the module but use the type itself *)
-			ctx.imports_manager#add_class_path e.e_module.m_path;
+			ctx.imports_manager#add_enum e;
 			remapHaxeTypeToObjc ctx true e.e_path p
 		end
 	| TInst (c,_) ->(* ctx.writer#write "TInst?"; *)
