@@ -792,7 +792,7 @@ let rec typeToString ctx t p =
 	| TAnon anon -> "id"
 	| TDynamic _ -> "id"
 	| TType (t,args) ->
-		(* ctx.writer#write "?TType?"; *)
+		(* ctx.writer#write("?TType " ^ (joinClassPath t.t_path ".") ^ " " ^ (s_t t.t_type) ^"?"); *)
 		(match t.t_path with
 		| [], "UInt" -> "uint"
 		| [] , "Null" ->
@@ -809,9 +809,14 @@ let rec typeToString ctx t p =
 				| TEnum ({ e_path = [],"Bool" },_) -> "BOOL"
 				| _ -> typeToString ctx t p)
 			| _ -> assert false);
-		| _ -> 
-			if Meta.has Meta.Category t.t_meta then getFirstMetaValue Meta.Category t.t_meta
-			else typeToString ctx (apply_params t.t_types args t.t_type) p)
+		| _ ->
+			let ttt = follow t.t_type in
+			(match ttt with
+			| TFun(args, t) -> ctx.writer#write("/*-TFun " ^ (s_t t) ^ "*/"); "id/*function*/"
+			| _ -> 
+				if Meta.has Meta.Category t.t_meta then getFirstMetaValue Meta.Category t.t_meta
+				else typeToString ctx (apply_params t.t_types args t.t_type) p)
+			)
 	| TLazy f ->
 		typeToString ctx ((!f)()) p
 ;;
