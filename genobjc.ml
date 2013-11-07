@@ -4080,7 +4080,11 @@ let generateImplementation ctx files_manager imports_manager =
 		ctx.writer#write ("@interface " ^ category_class ^ " ( " ^ (snd class_path) ^ " )");
 	end
 	else if ctx.is_protocol then begin
-		ctx.writer#write ("@protocol " ^ (snd class_path) ^ "<NSObject>");
+		let super = 
+			match ctx.class_def.cl_implements with
+			| [] -> "NSObject"
+			| implements -> String.concat "," (List.map (fun (tclass, _) -> snd(tclass.cl_path)) implements) in
+		ctx.writer#write ("@protocol " ^ (snd class_path) ^ "<" ^ super ^ ">");
 	end
 	else begin
 		
