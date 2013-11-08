@@ -835,6 +835,13 @@ let rec typeToString ctx t p =
 		typeToString ctx ((!f)()) p
 ;;
 
+(* Create a string for the type suitable for a declaration *)
+let declTypeToString ctx t p =
+	match t with
+	| TFun _ -> "id/*function*/"
+	| _ -> typeToString ctx t p
+;;
+
 let isString ctx e = 
 	let hstr =  (remapHaxeTypeToObjc ctx false ([],"String") e.epos) in 
 	let tstr = typeToString ctx e.etype e.epos in
@@ -987,7 +994,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 	let first_arg = ref true in
 	let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 	let sel_arr = Array.of_list sel_list in
-	let return_type = if ctx.generating_constructor then "id" else typeToString ctx ft pos in
+	let return_type = if ctx.generating_constructor then "id" else declTypeToString ctx ft pos in
 	(* This part generates the name of the function, the first part of the objc message *)
 	let func_name = if Array.length sel_arr > 1 then sel_arr.(0) else begin
 		(match name with None -> "" | Some (n,meta) ->
@@ -1028,7 +1035,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 		| HeaderObjc ->
 			let index = ref 0 in
 			concat ctx " " (fun (v,c) ->
-				let type_name = typeToString ctx v.v_type pos in
+				let type_name = declTypeToString ctx v.v_type pos in
 				let arg_name = (remapKeyword v.v_name) in
 				let message_name = if !first_arg then "" else if Array.length sel_arr > 1 then sel_arr.(!index) else arg_name in
 				ctx.writer#write (Printf.sprintf "%s:(%s%s)%s" (remapKeyword message_name) type_name (addPointerIfNeeded type_name) arg_name);
@@ -2523,7 +2530,7 @@ and generateCaseBlock ctx e =
 		ctx.writer#end_block;
 	
 and generateValue ctx e =
-	(* debug ctx ("\"-V-"^(Type.s_expr_kind e)^">\""); *)
+	debug ctx ("\"-V-"^(Type.s_expr_kind e)^">\"");
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some r -> r)) t_dynamic e.epos,
@@ -2745,7 +2752,7 @@ let generateProperty ctx field pos is_static =
 	| _ -> ()); (* TODO:Find the class from other types -- like TMono(t)? *)
 				
 	let id = field.cf_name in
-	let t = typeToString ctx field.cf_type pos in
+	let t = declTypeToString ctx field.cf_type pos in
 	let is_usetter = (match field.cf_kind with Var({v_write=AccCall}) -> true | _ -> false) in 
 	(* let class_name = (snd ctx.class_def.cl_path) in *)
 	if ctx.generating_header then begin
@@ -3098,10 +3105,10 @@ let generateField ctx is_static field =
 		end;
 		ctx.generating_objc_block <- false;
 	| _ ->
-		let is_getset = (match field.cf_kind with Var { v_read = AccCall _ } | Var { v_write = AccCall _ } -> true | _ -> false) in
+		let is_getset = (match field.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
 		let is_not_native = not(Meta.has Meta.NativeImpl field.cf_meta) in
 		match follow field.cf_type with
-			| TFun (args,r) -> ()
+(*			| TFun (args,r) -> ctx.writer#write("!!!!ignored!!!!"); ()*)
 			| _ when is_getset -> if ctx.generating_header && is_not_native then generateProperty ctx field pos is_static
 			| _ -> if is_not_native then generateProperty ctx field pos is_static
 ;;
