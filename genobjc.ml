@@ -812,7 +812,7 @@ let rec typeToString ctx t p =
 		| _ ->
 			let ttt = follow t.t_type in
 			(match ttt with
-			| TFun(args, t) -> ctx.writer#write("/*-TFun " ^ (s_t t) ^ "*/"); "id/*function*/"
+			| TFun(args, t) -> (*ctx.writer#write("/*-TFun " ^ (s_t t) ^ "*/");*) "id/*function*/"
 			| _ -> 
 				if Meta.has Meta.Category t.t_meta then getFirstMetaValue Meta.Category t.t_meta
 				else typeToString ctx (apply_params t.t_types args t.t_type) p)
@@ -1190,8 +1190,18 @@ let rec generateCall ctx (func:texpr) arg_list =
 				else ""
 			| _ -> "";
 		) in
+(*
+		let s_type = Type.s_type(print_context()) in
+		ctx.writer#write("/*-genCall " ^ (s_t func.etype) ^ " " ^ (s_expr s_type func.texpr);
+		(match func.etype with 
+		| TFun(l, t) ->
+			List.iter(fun (s, b, t) -> ctx.writer#write(s ^ " " ^ string_of_bool(b) ^ "  " ^ (s_t t))) l;
+			ctx.writer#write(" t:" ^ (s_t) t);
+		| _ -> ());
+		ctx.writer#write("*/");
+*)
 		ctx.generating_custom_selector <- (String.length sel > 0);
-		let generating_with_args = List.length arg_list > 0 in
+		let generating_with_args = match func.etype with TFun(params, t) -> List.length params > 0 | _ -> List.length arg_list > 0 in
 		if (generating_with_args) then begin
 			ctx.writer#write("[");
 			debug ctx "-xxx";
@@ -1227,15 +1237,11 @@ let rec generateCall ctx (func:texpr) arg_list =
 			let rec gen et =
 			(match et with
 				| TFun (args, ret) ->
-					(* let args_array_e = Array.of_list args in *)
+					(*let args_array_e = Array.of_list args in*)
 					if !index < (List.length args) then
 					List.iter ( fun (name, b, t) ->
-						(* print_endline (Printf.sprintf "%d %d %d" (!index) (List.length args) (List.length arg_list)); *)
-						(* ctx.generating_method_argument <- true; *)
 						if Array.length sel_arr > 0 then
 							ctx.writer#write (" "^sel_arr.(!index)^":")
-						(* This is now handled above with the single arg (which maybe should be no selector) rule above *)
-						(*else if (String.length name > 0) then ctx.writer#write ("~"^(remapKeyword name)^":")*)
 						else begin
 							if !index > 0 then ctx.writer#write(" " ^ name);
 							ctx.writer#write(":")
