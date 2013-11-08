@@ -637,6 +637,13 @@ let isMessageAccess ctx tvar =
 	(List.mem tvar ctx.uprefs) || (Hashtbl.mem ctx.blockvars tvar.v_name)
 ;;
 
+(* Check if expr is a local instance var w/o need of a getter/setter *)
+let isMyIsVar texpr tfa =
+	match texpr.eexpr, extract_field tfa with
+	| TConst(TThis), Some tcf -> Meta.has Meta.IsVar tcf.cf_meta
+	| _ -> false
+;;
+
 (* Type name for constant *)
 let s_const_typename = function
 	| TInt _ -> "Int"
@@ -1618,6 +1625,10 @@ and generateExpression ctx e =
 				push_require_pointer ctx false;
 				makeValue op e1 e2 false;
 				pop_require_pointer ctx
+			| TField(texpr, tfield_access) when isMyIsVar texpr tfield_access ->
+					let fname = field_name tfield_access in
+					ctx.writer#write(remapKeyword fname ^ " = ");
+					makeValue op e1 e2 (isPointer (typeToString ctx texpr.etype texpr.epos))
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
 					generateExpression ctx texpr;
@@ -1666,6 +1677,8 @@ and generateExpression ctx e =
 		ctx.writer#write ")";
 		(* generateFieldAccess ctx e1.etype (field_name s); *)
 		ctx.writer#write ("-fa8-"^(field_name s));
+	| TField (e, fa) when isMyIsVar e fa ->
+		ctx.writer#write(field_name fa) 
 	| TField (e,fa) ->
 		ctx.generating_fields <- ctx.generating_fields + 1;
 		(match fa with
@@ -2570,6 +2583,8 @@ and generateValue ctx e =
 		| _ -> error("Can't generate TField/FClosure with type " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos);
 		if not(ctx.generating_selector) then 
 			ctx.writer#write(")], nil]")
+	| TField(texpr, tfield_access) when isMyIsVar texpr tfield_access ->
+			ctx.writer#write(field_name tfield_access)
 	| TField(texpr, tfield_access) when is_message_target tfield_access ->
 		(*let s_type = Type.s_type(print_context()) in
 		ctx.writer#write("\"generateValue " ^ s_expr s_type e^"\"");*)
@@ -2955,6 +2970,30 @@ let generateHXObject common_ctx =
 let processFields ctx f =
 	List.iter (f ctx true) ctx.class_def.cl_ordered_statics;
 	List.iter (f ctx false) (List.rev ctx.class_def.cl_ordered_fields)
+;;
+
+let startGenerateIsVars ctx =
+	ctx.writer#new_line;
+	ctx.writer#write("{");
+	ctx.writer#push_indent;
+;;
+
+let endGenerateIsVars ctx = 
+	ctx.writer#new_line;
+	ctx.writer#pop_indent;
+	ctx.writer#write("}");
+;;
+
+let generateIsVars started ctx _ field =
+	if Meta.has Meta.IsVar field.cf_meta then begin
+		let t = typeToString ctx field.cf_type field.cf_pos in
+		if not(!started) then begin
+			started := true;
+			startGenerateIsVars ctx
+		end;
+		ctx.writer#new_line;
+		ctx.writer#write(t ^ " " ^ addPointerIfNeeded t ^ field.cf_name ^ ";")
+	end
 ;;
 
 let generateField ctx is_static field =
@@ -3997,6 +4036,11 @@ let generateImplementation ctx files_manager imports_manager =
 	(* ctx.writer#write "id me;";
 	ctx.writer#new_line; *)
 	
+	(* Generate any isVars as instance variables (but not properties) *)
+	let startedflag = ref false in
+	processFields ctx (generateIsVars startedflag); 
+	if !startedflag then endGenerateIsVars ctx;
+
 	(* Generate functions and variables *)
 	processFields ctx generateField;
 	
