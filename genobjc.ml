@@ -596,14 +596,19 @@ let rec isArray e =
 	| _ -> false)
 ;;
 
+let isId t =
+	String.sub t 0 2 = "id"
+;;
+
 (* 'id' is a pointer but does not need to specify it *)
 let isPointer t =
 	match t with
 	| "void" | "id" | "BOOL" | "int" | "uint" | "float" | "CGRect" | "CGPoint" | "CGSize" | "SEL" | "CGImageRef" 
 	| "NSRange"	-> false
-	| _ -> if (String.sub t 0 2 = "id") then false else true
+	| _ -> if isId t then false else true
 	(* TODO: enum is not pointer *)
 ;;
+
 let addPointerIfNeeded t =
 	if (isPointer t) then "*" else ""
 ;;
@@ -787,7 +792,9 @@ let rec typeToString ctx t p =
 		) args;
 		(* Write the type of a function, the block definition *)
 		(* !r *)
-		typeToString ctx ret p	
+		let t = typeToString ctx ret p in
+		debug ctx (" t:" ^ t ^ "-\"");
+		t
 	| TMono r -> (match !r with None -> "id" | Some t -> typeToString ctx t p)
 	| TAnon anon -> "id"
 	| TDynamic _ -> "id"
