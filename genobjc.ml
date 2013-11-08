@@ -682,7 +682,7 @@ let remapKeyword name =
 	| "asm" -> "_asm_"
 	| "__null" -> "null"
 	| "__class" -> "class"
-	| x -> x
+	| x -> if (String.length x > 0) && (Str.first_chars x 1 = "_") then "$" ^ x else x
 
 let appName ctx =
 	(* The name of the main class is the name of the app.  *)
