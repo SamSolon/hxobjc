@@ -1601,7 +1601,7 @@ and generateExpression ctx e =
 				makeValue op e1 e2 true;
 				ctx.writer#write(" forKey:@\""^tvar.v_name^"\"]")
 			| TLocal tvar ->
-				ctx.writer#write(tvar.v_name ^ " = ");
+				ctx.writer#write(remapKeyword tvar.v_name ^ " = ");
 				push_require_pointer ctx false;
 				makeValue op e1 e2 false;
 				pop_require_pointer ctx
