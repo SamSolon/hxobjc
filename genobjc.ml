@@ -1604,10 +1604,16 @@ and generateExpression ctx e =
 			let makeValue op exp1 exp2 as_object = 
 				let s_e2type = (typeToString ctx (follow e2.etype) e2.epos) in
 				let generate exp = 
-					if (as_object && not(isPointer s_e2type)) then begin
+					if (as_object && isValue s_e2type) then begin
 						match s_e2type with
-						| "int" -> 
+						| "int"
+						|" uint"
+						| "BOOL" -> 
 								ctx.writer#write("[NSNumber numberWithInt:");
+								generateValue ctx exp;
+								ctx.writer#write("]") 
+						| "float" ->
+								ctx.writer#write("[NSNumber numberWithFloat:");
 								generateValue ctx exp;
 								ctx.writer#write("]") 
 						| _ -> error ("Unhandled makeValue as object type " ^  s_e2type) exp.epos
