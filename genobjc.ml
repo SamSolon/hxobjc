@@ -737,10 +737,12 @@ let parent e =
 ;;
 
 let rec typeToString ctx t p =
+	debug ctx("\"-typeToString " ^ (s_t t) ^ "{" ^ (s_type(print_context()) t) ^ "}-\"");
 	match t with
 	(* | TEnum (te,tp) -> "TEnumInBlock" *)
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"id"
+	| TAbstract(_, TFun _ ::_) -> "id/*function*/"
 	| TAbstract (a,pl) ->(* ctx.writer#write "TAbstract?"; *)
 		ctx.imports_manager#add_abstract a pl;
 		if Meta.has Meta.MultiType a.a_meta then begin
@@ -782,8 +784,12 @@ let rec typeToString ctx t p =
 			^remapHaxeTypeToObjc ctx false c.cl_path p
 			^(if c.cl_interface then ">" else "")
 		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType | KAbstractImpl _ -> "id")
+	| TFun (_, TFun _)
+	| TFun ((_, _,TFun _)::_, _)
+	| TFun (_, TAbstract({a_path = ([], "Void")}, []))
+		-> "id/*function*/"
 	| TFun (args, ret) ->
-		debug ctx("\"-typeToString(TFun) of ");
+		debug ctx("\"-TFun ret:" ^ (s_t ret) ^ "{" ^ (s_type (print_context()) t) ^ "}-\"");
 		let r = ref "" in
 		let index = ref 0 in
 		List.iter ( fun (name, b, t) ->
@@ -792,16 +798,14 @@ let rec typeToString ctx t p =
 			(* if Array.length sel_arr > 0 then
 				r := !r ^ (" "^sel_arr.(!index)^":")
 			else *)
-			debug ctx(name ^ "->");
+			debug ctx((s_t t) ^ "/" ^ name ^ "=>");
 				r := !r ^ name;(* (if !index = 0 then ":" else (" "^(remapKeyword name)^":")); *)
 			(* generateValue ctx args_array_e.(!index); *)
 			index := !index + 1;
 		) args;
 		(* Write the type of a function, the block definition *)
 		(* !r *)
-		let t = typeToString ctx ret p in
-		debug ctx (" t:" ^ t ^ "-\"");
-		t
+		typeToString ctx ret p
 	| TMono r -> (match !r with None -> "id" | Some t -> typeToString ctx t p)
 	| TAnon anon -> "id"
 	| TDynamic _ -> "id"
@@ -833,13 +837,6 @@ let rec typeToString ctx t p =
 			)
 	| TLazy f ->
 		typeToString ctx ((!f)()) p
-;;
-
-(* Create a string for the type suitable for a declaration *)
-let declTypeToString ctx t p =
-	match t with
-	| TFun _ -> "id/*function*/"
-	| _ -> typeToString ctx t p
 ;;
 
 let isString ctx e = 
@@ -994,7 +991,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 	let first_arg = ref true in
 	let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 	let sel_arr = Array.of_list sel_list in
-	let return_type = if ctx.generating_constructor then "id" else declTypeToString ctx ft pos in
+	let return_type = if ctx.generating_constructor then "id/*ctor*/" else typeToString ctx ft pos in
 	(* This part generates the name of the function, the first part of the objc message *)
 	let func_name = if Array.length sel_arr > 1 then sel_arr.(0) else begin
 		(match name with None -> "" | Some (n,meta) ->
@@ -1035,7 +1032,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 		| HeaderObjc ->
 			let index = ref 0 in
 			concat ctx " " (fun (v,c) ->
-				let type_name = declTypeToString ctx v.v_type pos in
+				let type_name = typeToString ctx v.v_type pos in
 				let arg_name = (remapKeyword v.v_name) in
 				let message_name = if !first_arg then "" else if Array.length sel_arr > 1 then sel_arr.(!index) else arg_name in
 				ctx.writer#write (Printf.sprintf "%s:(%s%s)%s" (remapKeyword message_name) type_name (addPointerIfNeeded type_name) arg_name);
@@ -2758,7 +2755,7 @@ let generateProperty ctx field pos is_static =
 	| _ -> ()); (* TODO:Find the class from other types -- like TMono(t)? *)
 				
 	let id = field.cf_name in
-	let t = declTypeToString ctx field.cf_type pos in
+	let t = match field.cf_type with TFun _ -> "id/*pfunction*/" | _ -> typeToString ctx field.cf_type pos in
 	let is_usetter = (match field.cf_kind with Var({v_write=AccCall}) -> true | _ -> false) in 
 	(* let class_name = (snd ctx.class_def.cl_path) in *)
 	if ctx.generating_header then begin
