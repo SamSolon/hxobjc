@@ -3092,8 +3092,11 @@ let generateField ctx is_static field =
 			if not ctx.generating_header then generateMain ctx func;
 		end
 		else begin
+			(*let s_type = Type.s_type(print_context()) in
+			ctx.writer#write("/*generateField1 cf_type:" ^ (s_type field.cf_type)
+			(*^ " cf_expr:" ^ (match field.cf_expr with Some e -> s_expr s_type e | _ -> "null")*) ^ "*/");*) 
 			(* Generate function header *)
-			let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta func.tf_type func.tf_args field.cf_params pos is_static HeaderObjc in
+			let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta field.cf_type func.tf_args field.cf_params pos is_static HeaderObjc in
 			h();
 			(* Generate function content if is not a header file *)
 			if not ctx.generating_header then begin
