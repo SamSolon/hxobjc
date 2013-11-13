@@ -1879,7 +1879,8 @@ and generateExpression ctx e =
 				ctx.writer#write(tenum_field.ef_name)
 			else begin
 				ctx.imports_manager#add_enum tenum;
-				ctx.writer#write("[" ^ (joinClassPath tenum.e_path ".") ^ " create:@\"" ^ tenum_field.ef_name ^ "\"]")
+				(* TODO: Handle name collisions that would have been distinguished by the path *)
+				ctx.writer#write("[" ^ (snd tenum.e_path) ^ " create:@\"" ^ tenum_field.ef_name ^ "\"]")
 			end 
 		);
 		ctx.generating_fields <- ctx.generating_fields - 1;
