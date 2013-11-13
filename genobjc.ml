@@ -435,6 +435,10 @@ let isSpecialCompare e1 e2 =
 	| _ -> None
 ;;
 
+let s_meta meta =
+	String.concat ";" (List.map (fun (smeta, el, pos) -> Meta.to_string(smeta) ) meta)
+;;
+
 let rec s_t = function
 	| TMono t -> "TMono(" ^ (match !t with Some t -> (s_t t) | _ -> "null") ^ ")"
 	| TEnum _ -> "TEnum"
@@ -446,6 +450,7 @@ let rec s_t = function
 	| TLazy _ -> "TLazy"
 	| TAbstract (tabstract, _) -> "TAbstract(" ^ (joinClassPath tabstract.a_path ".") ^ ")"
 ;;
+
 (*
 let rec IsString ctx e =
 	(* TODO: left side of the binop is never discovered as being string *)
@@ -637,10 +642,20 @@ let isMessageAccess ctx tvar =
 	(List.mem tvar ctx.uprefs) || (Hashtbl.mem ctx.blockvars tvar.v_name)
 ;;
 
+(* Check if the field should be private and stored/handled locally *)
+(* We only do this for isVar so we can access w/o getter/setter *)
+let isPrivateField ctx tclass_field =
+	match tclass_field.cf_kind with 
+	| Var _ ->
+		let meta = tclass_field.cf_meta in
+		not(ctx.is_category) && Meta.has Meta.IsVar meta
+	| _ -> false
+;;
+
 (* Check if expr is a local instance var w/o need of a getter/setter *)
-let isMyIsVar texpr tfa =
-	match texpr.eexpr, extract_field tfa with
-	| TConst(TThis), Some tcf -> Meta.has Meta.IsVar tcf.cf_meta
+let isPrivateVar ctx texpr tfa =
+match texpr.eexpr, extract_field tfa with
+	| TConst(TThis), Some tcf -> isPrivateField ctx tcf
 	| _ -> false
 ;;
 
@@ -695,6 +710,14 @@ let remapKeyword name =
 	| "__null" -> "null"
 	| "__class" -> "class"
 	| x -> if (String.length x > 0) && (Str.first_chars x 1 = "_") then "$" ^ x else x
+
+let generatePrivateName name =
+	let fname = "$$" ^ name in
+	remapKeyword fname
+	
+let generatePrivateVarName tfa =
+	generatePrivateName (field_name tfa) 
+;;
 
 let appName ctx =
 	(* The name of the main class is the name of the app.  *)
@@ -1635,9 +1658,9 @@ and generateExpression ctx e =
 				push_require_pointer ctx false;
 				makeValue op e1 e2 false;
 				pop_require_pointer ctx
-			| TField(texpr, tfield_access) when isMyIsVar texpr tfield_access ->
-					let fname = field_name tfield_access in
-					ctx.writer#write(remapKeyword fname ^ " = ");
+			| TField(texpr, tfield_access) when isPrivateVar ctx texpr tfield_access ->
+					generatePrivateVar ctx texpr tfield_access;
+					ctx.writer#write(" = ");
 					makeValue op e1 e2 (isPointer (typeToString ctx texpr.etype texpr.epos))
 			| TField(texpr, tfield_access) ->
 					ctx.writer#write("["); debug ctx "-yyy-";
@@ -1687,8 +1710,8 @@ and generateExpression ctx e =
 		ctx.writer#write ")";
 		(* generateFieldAccess ctx e1.etype (field_name s); *)
 		ctx.writer#write ("-fa8-"^(field_name s));
-	| TField (e, fa) when isMyIsVar e fa ->
-		ctx.writer#write(field_name fa) 
+	| TField (e, fa) when isPrivateVar ctx e fa ->
+			generatePrivateVar ctx e fa 
 	| TField (e,fa) ->
 		ctx.generating_fields <- ctx.generating_fields + 1;
 		(match fa with
@@ -2593,8 +2616,8 @@ and generateValue ctx e =
 		| _ -> error("Can't generate TField/FClosure with type " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos);
 		if not(ctx.generating_selector) then 
 			ctx.writer#write(")], nil]")
-	| TField(texpr, tfield_access) when isMyIsVar texpr tfield_access ->
-			ctx.writer#write(field_name tfield_access)
+	| TField(texpr, tfield_access) when isPrivateVar ctx texpr tfield_access ->
+			generatePrivateVar ctx texpr tfield_access
 	| TField(texpr, tfield_access) when is_message_target tfield_access ->
 		(*let s_type = Type.s_type(print_context()) in
 		ctx.writer#write("\"generateValue " ^ s_expr s_type e^"\"");*)
@@ -2744,6 +2767,10 @@ and generateValue ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v()
+and
+	generatePrivateVar ctx texpr tfa =
+		ctx.writer#write(generatePrivateVarName tfa)
+
 
 let generateProperty ctx field pos is_static =
   (* Make sure we're importing the class for this property *)
@@ -2982,32 +3009,41 @@ let processFields ctx f =
 	List.iter (f ctx false) (List.rev ctx.class_def.cl_ordered_fields)
 ;;
 
-let startGenerateIsVars ctx =
+let startGeneratePrivate ctx =
 	ctx.writer#new_line;
 	ctx.writer#write("{");
 	ctx.writer#push_indent;
 ;;
 
-let endGenerateIsVars ctx = 
+let endGeneratePrivate ctx = 
 	ctx.writer#new_line;
 	ctx.writer#pop_indent;
 	ctx.writer#write("}");
 ;;
 
-let generateIsVars started ctx _ field =
-	if Meta.has Meta.IsVar field.cf_meta then begin
+let generatePrivate started ctx _ field =
+	let meta = field.cf_meta in
+(*	ctx.writer#write(Printf.sprintf "\nChecking %s\t\t\t public:%B\t protected:%B\t private:%B" 
+  				field.cf_name (Meta.has Meta.Public meta) (Meta.has Meta.Protected meta) (Meta.has Meta.PrivateAccess meta));*)
+(*		ctx.writer#write("\n/*Checking " ^ field.cf_name ^ (if field.cf_public then " public " else "") 
+		^ " " ^ (s_kind field.cf_kind)(*(match field.cf_kind with
+		| Var _ -> "Var"
+		| Method _ -> "Method"
+		)*)
+		^ (s_meta meta) ^ "*/");*)
+	if isPrivateField ctx field then begin
 		let t = typeToString ctx field.cf_type field.cf_pos in
 		if not(!started) then begin
 			started := true;
-			startGenerateIsVars ctx
+			startGeneratePrivate ctx
 		end;
 		ctx.writer#new_line;
-		ctx.writer#write(t ^ " " ^ addPointerIfNeeded t ^ field.cf_name ^ ";")
+		ctx.writer#write(t ^ " " ^ addPointerIfNeeded t ^ generatePrivateName field.cf_name ^ ";")
 	end
 ;;
 
 let generateField ctx is_static field =
-	debug ctx ("\n-F:" ^ field.cf_name 
+	debug ctx("\n-F:" ^ field.cf_name 
 	^ " " ^ (s_kind field.cf_kind) 
 	^ ":" ^ (s_fun (print_context()) field.cf_type true) ^ (match field.cf_expr with Some expr -> s_expr (s_type(print_context())) expr | _ -> "") ^ "-");
 	ctx.writer#new_line;
@@ -3108,12 +3144,16 @@ let generateField ctx is_static field =
 		end;
 		ctx.generating_objc_block <- false;
 	| _ ->
-		let is_getset = (match field.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
-		let is_not_native = not(Meta.has Meta.NativeImpl field.cf_meta) in
-		match follow field.cf_type with
+(*		if not(isPrivateField ctx field) then begin*)
+			let is_getset = (match field.cf_kind with Var { v_read = AccCall } | Var { v_write = AccCall } -> true | _ -> false) in
+			let is_not_native = not(Meta.has Meta.NativeImpl field.cf_meta) in
+			if is_not_native then generateProperty ctx field pos is_static
+(*			match follow field.cf_type with
 (*			| TFun (args,r) -> ctx.writer#write("!!!!ignored!!!!"); ()*)
-			| _ when is_getset -> if ctx.generating_header && is_not_native then generateProperty ctx field pos is_static
-			| _ -> if is_not_native then generateProperty ctx field pos is_static
+				| _ when is_getset -> if ctx.generating_header && is_not_native then generateProperty ctx field pos is_static
+				| _ -> if is_not_native then generateProperty ctx field pos is_static
+*)
+(*			end*)
 ;;
 
 let rec defineGetSet ctx is_static c =
@@ -4048,8 +4088,8 @@ let generateImplementation ctx files_manager imports_manager =
 	
 	(* Generate any isVars as instance variables (but not properties) *)
 	let startedflag = ref false in
-	processFields ctx (generateIsVars startedflag); 
-	if !startedflag then endGenerateIsVars ctx;
+	processFields ctx (generatePrivate startedflag); 
+	if !startedflag then endGeneratePrivate ctx;
 
 	(* Generate functions and variables *)
 	processFields ctx generateField;
