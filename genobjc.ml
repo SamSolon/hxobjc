@@ -809,10 +809,10 @@ let rec typeToString ctx t p =
 		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType | KAbstractImpl _ -> "id")
 	| TFun (_, TFun _)
 	| TFun ((_, _,TFun _)::_, _)
-	| TFun (_, TAbstract({a_path = ([], "Void")}, []))
+(*	| TFun (_, TAbstract({a_path = ([], "Void")}, []))*)
 		-> "id/*function*/"
 	| TFun (args, ret) ->
-		debug ctx("\"-TFun ret:" ^ (s_t ret) ^ "{" ^ (s_type (print_context()) t) ^ "}-\"");
+		debug ctx("/*\"-TFun ret:" ^ (s_t ret) ^ "{" ^ (s_type (print_context()) t) ^ "} ");
 		let r = ref "" in
 		let index = ref 0 in
 		List.iter ( fun (name, b, t) ->
@@ -826,6 +826,7 @@ let rec typeToString ctx t p =
 			(* generateValue ctx args_array_e.(!index); *)
 			index := !index + 1;
 		) args;
+		debug ctx("-\"**/");
 		(* Write the type of a function, the block definition *)
 		(* !r *)
 		typeToString ctx ret p
@@ -860,6 +861,13 @@ let rec typeToString ctx t p =
 			)
 	| TLazy f ->
 		typeToString ctx ((!f)()) p
+;;
+
+(* Return a type suitable for a declaration *)
+let declTypeToString ctx t p =
+	match t with 
+	| TFun _ -> "id/*function*/"
+	| _ -> typeToString ctx t p
 ;;
 
 let isString ctx e = 
@@ -1004,7 +1012,7 @@ let defaultValue s =
 (* A function header in objc is a message *)
 (* We need to follow some strict rules *)
 let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static kind =
-	(* ctx.writer#write ("gen-func-"); *)
+	(*ctx.writer#write("/*generateFunctionHeader " ^ (s_type (print_context()) ft) ^ "*/");*)
 	let old = ctx.in_value in
 	let locals = saveLocals ctx in
 	let old_t = ctx.local_types in
@@ -1014,7 +1022,8 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 	let first_arg = ref true in
 	let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 	let sel_arr = Array.of_list sel_list in
-	let return_type = if ctx.generating_constructor then "id/*ctor*/" else typeToString ctx ft pos in
+	let return_type = 
+		if ctx.generating_constructor then "id/*ctor*/" else typeToString ctx ft pos in
 	(* This part generates the name of the function, the first part of the objc message *)
 	let func_name = if Array.length sel_arr > 1 then sel_arr.(0) else begin
 		(match name with None -> "" | Some (n,meta) ->
@@ -1055,7 +1064,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 		| HeaderObjc ->
 			let index = ref 0 in
 			concat ctx " " (fun (v,c) ->
-				let type_name = typeToString ctx v.v_type pos in
+				let type_name = declTypeToString ctx v.v_type pos in
 				let arg_name = (remapKeyword v.v_name) in
 				let message_name = if !first_arg then "" else if Array.length sel_arr > 1 then sel_arr.(!index) else arg_name in
 				ctx.writer#write (Printf.sprintf "%s:(%s%s)%s" (remapKeyword message_name) type_name (addPointerIfNeeded type_name) arg_name);
@@ -1070,7 +1079,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 			
 		| HeaderObjcWithoutParams ->
 			concat ctx " " (fun (v,c) ->
-				let type_name = typeToString ctx v.v_type pos in
+				let type_name = declTypeToString ctx v.v_type pos in
 				let arg_name = (remapKeyword v.v_name) in
 				ctx.writer#write (Printf.sprintf ":(%s%s)%s" type_name (addPointerIfNeeded type_name) arg_name);
 				if not ctx.generating_header then begin
@@ -1083,7 +1092,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 		| HeaderBlock ->
 			ctx.writer#write "(";
 			concat ctx ", " (fun (v,c) ->
-				let type_name = typeToString ctx v.v_type pos in
+				let type_name = declTypeToString ctx v.v_type pos in
 				ctx.writer#write (Printf.sprintf "%s%s" type_name (addPointerIfNeeded type_name));
 			) args;
 			ctx.writer#write ")";
@@ -1094,7 +1103,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 			ctx.writer#write("(" ^ if List.length(args) > 0 then (argself ^ ",") else argself);
 			
 			concat ctx ", " (fun (v,c) ->
-				let type_name = typeToString ctx v.v_type pos in
+				let type_name = declTypeToString ctx v.v_type pos in
 				let arg_name = (remapKeyword v.v_name) in
 				let is_enum = (match v.v_type with | TEnum _ -> true | _ -> false) in
 				ctx.writer#write (Printf.sprintf "%s %s%s" type_name (if is_enum then "" else (addPointerIfNeeded type_name)) arg_name);
@@ -1110,7 +1119,7 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 			(* Arguments types *)
 			ctx.writer#write "(";
 			concat ctx ", " (fun (v,c) ->
-				let type_name = typeToString ctx v.v_type pos in
+				let type_name = declTypeToString ctx v.v_type pos in
 				(* let arg_name = (remapKeyword v.v_name) in *)
 				ctx.writer#write (Printf.sprintf "%s%s" type_name (addPointerIfNeeded type_name));
 			) args;
@@ -2242,7 +2251,7 @@ and generateExpression ctx e =
 		(* Local vars declaration *)
 		ctx.generating_var <- true;
 		concat ctx "; " (fun (v,eo) ->
-			let t = (typeToString ctx v.v_type e.epos) in
+			let t = (declTypeToString ctx v.v_type e.epos) in
 			if isPointer t then ctx.writer#new_line;
 			ctx.writer#write (Printf.sprintf "%s %s%s" t (addPointerIfNeeded t) (remapKeyword v.v_name));
 			(* Check if this Type is a Class and if it's imported *)
@@ -3102,6 +3111,9 @@ let generateField ctx is_static field =
 				ctx.writer#write ";";
 		end
 	| None, Method(MethNormal) ->
+			(*let s_type = Type.s_type(print_context()) in
+			ctx.writer#write("/*generateField2 cf_type:" ^ (s_type field.cf_type) 
+			^ " cf_expr:" ^ (match field.cf_expr with Some e -> s_expr s_type e | _ -> "null") ^ "*/");*) 
 		let mktvar name t = {v_id=0; v_name=name; v_type=t; v_capture=false; v_extra=(None,false)} in
 		let args = List.map (fun (name,_, t) -> mktvar name t, None) (match field.cf_type with TFun(l, _) -> l | _ -> []) in 
 		let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta field.cf_type args field.cf_params pos is_static HeaderObjc in
