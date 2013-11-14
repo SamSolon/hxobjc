@@ -2228,7 +2228,7 @@ and generateExpression ctx e =
 		
 		ctx.writer#new_line;
 		ctx.writer#end_block;
-		ctx.writer#write("();");
+		ctx.writer#write("()");
 		
 		ctx.generating_object_declaration <- false;
 		pop_require_pointer ctx;
