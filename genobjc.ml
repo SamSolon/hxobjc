@@ -442,7 +442,7 @@ let s_meta meta =
 let rec s_t = function
 	| TMono t -> "TMono(" ^ (match !t with Some t -> (s_t t) | _ -> "null") ^ ")"
 	| TEnum _ -> "TEnum"
-	| TInst(tclass, tparams) -> "TInst(" ^ (joinClassPath tclass.cl_path ".") ^ "[" ^ (String.concat "%" (List.map (fun t -> s_t t) tparams)) ^ "])"
+	| TInst(tclass, tparams) -> "TInst(" ^ (joinClassPath tclass.cl_path ".") ^ "<" ^ (String.concat "%" (List.map (fun t -> s_t t) tparams)) ^ ">)"
 	| TType _ -> "TType"
 	| TFun _ -> "TFun"
 	| TAnon _ -> "TAnon"
@@ -657,6 +657,30 @@ let isPrivateVar ctx texpr tfa =
 match texpr.eexpr, extract_field tfa with
 	| TConst(TThis), Some tcf -> isPrivateField ctx tcf
 	| _ -> false
+;;
+
+(* check if pname is a param of a function? defined by texpr_expr *)
+(* Must be a better way to check/refactor this *)
+let isTypeParam texpr_expr pname =
+	try 
+	match texpr_expr with
+	| TField(_, tfa) ->
+		let tcf = extract_field tfa in
+		(match tcf with
+		| Some tcf ->
+			(match tcf.cf_type with 
+			| TFun(al, _) ->
+					(match List.find (fun (n,b,t) -> pname = n) al with
+					| (_, _, at) ->
+						(match at with
+						| TInst(tclass, _) ->
+							(match tclass.cl_kind with KTypeParameter _ -> true | _ -> false)
+						| _ -> false)
+					)
+			| _ -> false)
+		| _ -> false)
+	| _ -> false
+	with _ -> false
 ;;
 
 (* Type name for constant *)
@@ -1282,6 +1306,44 @@ let rec generateCall ctx (func:texpr) arg_list =
 			generateValue ctx func;
 
 		if generating_with_args then begin
+(*			
+			(match func.eexpr with 
+			| TField(_, tfa) ->
+				let tcf = extract_field tfa in
+				(match tcf with 
+				| Some tcf -> 
+					ctx.writer#write("/*TField Some tcf " 
+						^ tcf.cf_name ^ ":" ^ "(t:" ^ (s_t tcf.cf_type) ^ ") " 
+(*						^ s_type (print_context()) tcf.cf_type*)
+						^ (match tcf.cf_type with
+								| TFun(al, t) ->
+									String.concat ";" 
+									(List.map(fun (n,b,t) -> n ^ " is " 
+										^ (match t with
+												| TInst(tclass, tparams) ->
+													"TInst(" ^ (joinClassPath tclass.cl_path ".")
+														^ " kind:" ^ 
+														(match tclass.cl_kind with
+														| KNormal -> "KNormal"
+														| KTypeParameter tl ->
+																"KTypeParameter<" ^ String.concat "," (List.map (fun t -> s_t t) tl) ^ "> "
+														| KExtension _ -> "KExtension"
+														| KExpr _ -> "Kexpr"
+														| KGeneric -> "KGeneric"
+														| KGenericInstance _ -> "KGenericInstance"
+														| KMacroType -> "KMacroType"
+														| KAbstractImpl _ -> "KAbstractImpl") 
+														^ " params:<" ^ String.concat "," (List.map (fun t -> s_t t) tparams) ^ ">)"
+												| _ -> (s_t t))
+										)
+									al )
+								| _ -> "")
+						^ " params:" ^ (string_of_int (List.length tcf.cf_params)) ^ " */");
+					List.iter (fun (n, t) -> ctx.writer#write("/*-- " ^ n ^ ":" ^ (typeToString ctx t func.epos) ^ " --*/")) tcf.cf_params
+				| _ -> ())
+			| _ -> ());
+*)
+			let tp = isTypeParam func.eexpr in
 			let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 			let sel_arr = Array.of_list sel_list in
 			let args_array_e = Array.of_list arg_list in
@@ -1301,8 +1363,13 @@ let rec generateCall ctx (func:texpr) arg_list =
 						(* TODO: inspect the bug, why is there a different number of arguments. In StringBuf *)
 						if !index >= (List.length arg_list) then
 							ctx.writer#write "nil"
-						else
+						else begin
+							let st = typeToString ctx t func.epos in
+							let prequired = not(isValue st) || tp name in
+							push_require_pointer ctx prequired;
 							generateValue ctx args_array_e.(!index);
+							pop_require_pointer ctx
+						end;
 						index := !index + 1;
 					) args;
 					(* ctx.generating_method_argument <- false; *)
