@@ -1306,43 +1306,6 @@ let rec generateCall ctx (func:texpr) arg_list =
 			generateValue ctx func;
 
 		if generating_with_args then begin
-(*			
-			(match func.eexpr with 
-			| TField(_, tfa) ->
-				let tcf = extract_field tfa in
-				(match tcf with 
-				| Some tcf -> 
-					ctx.writer#write("/*TField Some tcf " 
-						^ tcf.cf_name ^ ":" ^ "(t:" ^ (s_t tcf.cf_type) ^ ") " 
-(*						^ s_type (print_context()) tcf.cf_type*)
-						^ (match tcf.cf_type with
-								| TFun(al, t) ->
-									String.concat ";" 
-									(List.map(fun (n,b,t) -> n ^ " is " 
-										^ (match t with
-												| TInst(tclass, tparams) ->
-													"TInst(" ^ (joinClassPath tclass.cl_path ".")
-														^ " kind:" ^ 
-														(match tclass.cl_kind with
-														| KNormal -> "KNormal"
-														| KTypeParameter tl ->
-																"KTypeParameter<" ^ String.concat "," (List.map (fun t -> s_t t) tl) ^ "> "
-														| KExtension _ -> "KExtension"
-														| KExpr _ -> "Kexpr"
-														| KGeneric -> "KGeneric"
-														| KGenericInstance _ -> "KGenericInstance"
-														| KMacroType -> "KMacroType"
-														| KAbstractImpl _ -> "KAbstractImpl") 
-														^ " params:<" ^ String.concat "," (List.map (fun t -> s_t t) tparams) ^ ">)"
-												| _ -> (s_t t))
-										)
-									al )
-								| _ -> "")
-						^ " params:" ^ (string_of_int (List.length tcf.cf_params)) ^ " */");
-					List.iter (fun (n, t) -> ctx.writer#write("/*-- " ^ n ^ ":" ^ (typeToString ctx t func.epos) ^ " --*/")) tcf.cf_params
-				| _ -> ())
-			| _ -> ());
-*)
 			let tp = isTypeParam func.eexpr in
 			let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 			let sel_arr = Array.of_list sel_list in
