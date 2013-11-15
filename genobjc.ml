@@ -660,7 +660,7 @@ match texpr.eexpr, extract_field tfa with
 	| _ -> false
 ;;
 
-(* check if pname is a param of a function? defined by texpr_expr *)
+(* check if pname is a type param of a function? defined by texpr_expr *)
 (* Must be a better way to check/refactor this *)
 let isTypeParam texpr_expr pname =
 	try 
@@ -682,6 +682,32 @@ let isTypeParam texpr_expr pname =
 		| _ -> false)
 	| _ -> false
 	with _ -> false
+;;
+
+(* Check if texpr_expr is a function that we should call *)
+let isFunctionVar texpr_expr = 
+	match texpr_expr with
+	| TCall(texpr, _) ->
+		(match follow texpr.etype with
+		| TFun _ -> true
+		| _ -> false)
+	| TLocal tvar -> 
+		(match follow tvar.v_type with
+		| TFun _ -> true
+		| _ -> false)
+	| TField(_, tfield_access) ->
+		(match extract_field tfield_access with
+		| Some tcf ->
+				let ft = field_type tcf in
+				(match ft with
+				| TType(tdef, _) ->
+						let tt = follow tdef.t_type in
+						(match tt with
+							| TFun _ -> true
+							| _ -> false)
+				| _ -> false)
+		| _ -> false)
+	| _ -> false
 ;;
 
 (* Type name for constant *)
@@ -1222,12 +1248,18 @@ let rec generateCall ctx (func:texpr) arg_list =
 		)
 	(* Generate an Objective-C call with [] *)
 	| _ ->(
-		match func.eexpr with
-		| TLocal tvar -> (* Call through a local *)
-			generateCallFunObject ctx (fun() -> ctx.writer#write(tvar.v_name)) arg_list
-		| TCall (texpr, _) -> 
-			generateCallFunObject ctx (fun() -> generateValue ctx texpr) arg_list
-				| _ -> begin
+		if isFunctionVar func.eexpr then begin
+			let objgen = 
+				match func.eexpr with
+					| TLocal tvar -> (* Call through a local *)
+							fun() -> ctx.writer#write(tvar.v_name)
+					| TCall (texpr, _)
+					| TField (texpr, _) ->
+							fun() -> generateValue ctx func
+					| _ -> error ("Unhandled type of function var expression " ^ s_expr_kind func) func.epos in 
+			generateCallFunObject ctx objgen arg_list
+		end
+		else begin
 		(* ctx.writer#write "-OBJC-"; *)
 		(* A call should cancel the TField *)
 		(* When we have a self followed by 2 TFields in a row we use dot notation for the first field *)
@@ -1275,12 +1307,23 @@ let rec generateCall ctx (func:texpr) arg_list =
 			| TField(texpr, tfield_access) ->
 (*
 				let s_type = Type.s_type(print_context()) in
-				ctx.writer#write("|Call TField " ^ (s_expr s_type texpr) 
+				let tcf = extract_field tfield_access in
+				ctx.writer#write("/* Call TField " ^ (s_expr s_type texpr) 
 				                 ^ " name:" ^ (Type.field_name tfield_access) 
+												 ^ " t:" ^ (match tcf with 
+																			|	Some tcf -> 
+																				let ft = field_type tcf in
+																				s_t ft ^ ":" ^ s_type ft ^ "/" ^ s_kind tcf.cf_kind ^
+																				(match ft with
+																				| TType(tdef, tparams) ->
+																						let tt = follow tdef.t_type in
+																						"(" ^ s_t tt ^ "/" ^ s_type tt ^ " params:" ^ String.concat "," (List.map (fun t -> s_t t) tparams) ^ ")"
+																				| _ ->  "")
+																			| _ -> "????")
 												 ^ " sel: '" ^ sel ^ "'"
 												 ^" args:");
 				List.iter (fun(arg) -> ctx.writer#write("(" ^ (s_expr s_type arg) ^ ")")) arg_list;
-				ctx.writer#write("|");
+				ctx.writer#write("*/");
 *)
 				(* Only generate the receiver -- we'll handle the selector/args below *)
 				generateValue ctx texpr;
