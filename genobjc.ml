@@ -83,7 +83,8 @@ class importsManager =
 		| ([],"Float")
 		| ([],"Dynamic")
 		| ([],"T")
-		| ([],"Bool") -> ();
+		| ([],"Bool")
+		| ([],"SEL") -> ();
 		| _ -> if not (List.mem class_path class_imports) then class_imports <- List.append class_imports [class_path];
 	method add_enum(enum:tenum) =
 		if not(Meta.has Meta.FakeEnum enum.e_meta) then
