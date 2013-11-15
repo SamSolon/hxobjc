@@ -1223,22 +1223,11 @@ let rec generateCall ctx (func:texpr) arg_list =
 	(* Generate an Objective-C call with [] *)
 	| _ ->(
 		match func.eexpr with
-		| TLocal tvar -> (* Call through a local which we assume holds an array with [selector, object] *)
-			ctx.imports_manager#add_class_import_custom("objc/message.h");
-			ctx.writer#write("objc_msgSend([" ^ tvar.v_name ^ " objectAtIndex:0], [[" ^ tvar.v_name ^ " objectAtIndex:1] pointerValue]");
-			List.iter (fun e -> ctx.writer#write(", "); generateValue ctx e) arg_list;
-			ctx.writer#write(")");
-			
+		| TLocal tvar -> (* Call through a local *)
+			generateCallFunObject ctx (fun() -> ctx.writer#write(tvar.v_name)) arg_list
 		| TCall (texpr, _) -> 
-			ctx.imports_manager#add_class_import_custom("objc/message.h");
-			ctx.writer#write("objc_msgSend([");
-			generateValue ctx texpr;
-			ctx.writer#write(" objectAtIndex:0], [[");
-			generateValue ctx texpr;
-			ctx.writer#write(" objectAtIndex:1] pointerValue]");
-			List.iter (fun e -> ctx.writer#write(", "); generateValue ctx e) arg_list;
-			ctx.writer#write(")");
-		| _ -> begin
+			generateCallFunObject ctx (fun() -> generateValue ctx texpr) arg_list
+				| _ -> begin
 		(* ctx.writer#write "-OBJC-"; *)
 		(* A call should cancel the TField *)
 		(* When we have a self followed by 2 TFields in a row we use dot notation for the first field *)
@@ -2813,7 +2802,16 @@ and generateValue ctx e =
 and
 	generatePrivateVar ctx texpr tfa =
 		ctx.writer#write(generatePrivateVarName tfa)
-
+and
+	generateCallFunObject ctx fgenobj arg_list =
+		ctx.imports_manager#add_class_import_custom("objc/message.h");
+		ctx.writer#write("objc_msgSend([");
+		fgenobj();
+		ctx.writer#write(" objectAtIndex:0], [[");
+		fgenobj();
+		ctx.writer#write(" objectAtIndex:1] pointerValue]");
+		List.iter (fun e -> ctx.writer#write(", "); generateValue ctx e) arg_list;
+		ctx.writer#write(")")
 
 let generateProperty ctx field pos is_static =
   (* Make sure we're importing the class for this property *)
