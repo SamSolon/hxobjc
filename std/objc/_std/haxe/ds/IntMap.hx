@@ -21,18 +21,21 @@
  */
 package haxe.ds;
 
+import objc.foundation.NSDictionary;
+
 @:framework("Foundation")
-@:category("NSMutableDictionary")
+//@:category("NSMutableDictionary")
 @:coreApi
-class IntMap<T> implements Map.IMap<Int,T> {
+class IntMap<T> implements Map.IMap<Int,T> extends NSMutableDictionary
+{
 	
  	public function new() : Void {
-		
+		super();
  	}
 
  	public function set( key : Int, value : T ) : Void {
  		//untyped this.setObject (value, key);
- 		untyped __objc__("[self setObject:value forKey:[NSString stringWithFormat:@\"%i\",key]]");
+ 		untyped __objc__("[self setObject:[NSString stringWithFormat:@\"%i\", value] forKey:[NSString stringWithFormat:@\"%i\",key]]");
  	}
 
  	public function get( key : Int ) : Null<T> {
