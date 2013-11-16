@@ -2519,7 +2519,8 @@ and generateExpression ctx e =
 		ctx.writer#new_line;
 		ctx.writer#write (Printf.sprintf "while ( [%s hasNext] ) " tmp);
 		ctx.writer#begin_block;
-		ctx.writer#write (Printf.sprintf "%s* %s = [%s next];" (typeToString ctx v.v_type e.epos) (remapKeyword v.v_name) tmp);
+		let st = declTypeToString ctx v.v_type e.epos in
+		ctx.writer#write (Printf.sprintf "%s %s = [%s next];" (st ^ addPointerIfNeeded st) (remapKeyword v.v_name) tmp);
 		ctx.writer#new_line;
 		generateExpression ctx e;
 		ctx.writer#write ";";
