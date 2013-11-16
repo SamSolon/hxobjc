@@ -916,7 +916,8 @@ let rec typeToString ctx t p =
 
 (* Return a type suitable for a declaration *)
 let declTypeToString ctx t p =
-	match t with 
+	debug ctx("/* declTypeToString " ^ s_t t ^ "/" ^ s_type (print_context()) t ^ " */");
+	match follow t with 
 	| TFun _ -> "id/*function*/"
 	| _ -> typeToString ctx t p
 ;;
