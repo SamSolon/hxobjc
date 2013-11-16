@@ -2317,10 +2317,12 @@ and generateExpression ctx e =
 						
 	| TArrayDecl el ->
 		push_require_pointer ctx true;
+		push_require_object ctx true;
 		ctx.writer#write "[@[";
 		concat ctx ", " (generateValue ctx) el;
 		ctx.writer#write "] mutableCopy]";
 		pop_require_pointer ctx;
+		pop_require_object ctx;
 	| TThrow e ->
 		ctx.writer#write "@throw ";
 		generateValue ctx e;
