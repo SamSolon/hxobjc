@@ -341,7 +341,7 @@ type context = {
 	mutable generating_fields : int;(* How many fields are generated in a row *)
 	mutable generating_string_append : int;
 	mutable saved_require_pointer : bool list;
-	mutable require_object : bool;
+	mutable saved_require_object : bool list;
 	mutable return_needs_semicolon : bool;
 	mutable gen_uid : int;
 	mutable local_types : t list;
@@ -381,7 +381,7 @@ let newContext common_ctx writer imports_manager file_info = {
 	generating_fields = 0;
 	generating_string_append = 0;
 	saved_require_pointer = [false];
-	require_object = false;
+	saved_require_object = [false];
 	return_needs_semicolon = false;
 	gen_uid = 0;
 	local_types = [];
@@ -412,6 +412,19 @@ let push_require_pointer ctx is_required =
 let pop_require_pointer ctx =
 	ctx.saved_require_pointer <- List.tl ctx.saved_require_pointer
 ;;
+
+let require_object ctx =
+	List.hd ctx.saved_require_object
+;;
+
+let push_require_object ctx is_required =
+	ctx.saved_require_object <- is_required::ctx.saved_require_object
+;;
+
+let pop_require_object ctx =
+	ctx.saved_require_object <- List.tl ctx.saved_require_object
+;;
+
 let debug ctx str =
 	if d then ctx.writer#write str
 ;;
@@ -1051,7 +1064,7 @@ let generateConstant ctx p = function
 	| TBool b ->
 		let v = if b then "YES" else "NO" in
 		ctx.writer#write(if require_pointer ctx then Printf.sprintf "[NSNumber numberWithInt:%s]" v else v)
-	| TNull -> ctx.writer#write (if ctx.require_object then "[NSNull null]" else "nil")
+	| TNull -> ctx.writer#write (if require_object ctx then "[NSNull null]" else "nil")
 (*	| TNull -> ctx.writer#write (if ctx.require_pointer then "[NSNull null]" else "nil")*)
 	| TThis -> ctx.writer#write "self"; ctx.generating_self_access <- true 
 	| TSuper -> ctx.writer#write "super"
@@ -1519,7 +1532,7 @@ and generateExpression ctx e =
 		let stype = typeToString ctx (follow v.v_type) null in
 		let s_value = 
 				match stype with 
-				| "int" when ctx.require_object -> 
+				| "int" when require_object ctx -> 
 					"[NSNumber numberWithInt:" ^ s_name ^ "]"
 				| _ -> s_name in
 		debug ctx (stype ^ ">");
