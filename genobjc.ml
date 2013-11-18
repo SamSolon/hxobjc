@@ -2598,31 +2598,79 @@ and generateExpression ctx e =
 		(* ctx.writer#end_block; *)*)
 	| TPatMatch dt -> assert false
 	| TSwitch (e,cases,def) ->
-		(* ctx.return_needs_semicolon <- true; *)
-		ctx.writer#write "switch"; 
-		push_require_pointer ctx false;
-		generateValue ctx (parent e); ctx.writer#begin_block;
-		pop_require_pointer ctx;
-		List.iter (fun (el,e2) ->
-			List.iter (fun e ->
-				ctx.writer#write "case "; generateValue ctx e; ctx.writer#write ":";
-			) el;
-			generateCaseBlock ctx e2;
-			ctx.writer#terminate_line;
-			ctx.writer#write "break;";
-			ctx.writer#new_line;
-		) cases;
-		(match def with
-		| None -> ()
-		| Some e ->
-			ctx.writer#write "default:";
-			generateCaseBlock ctx e;
-			ctx.writer#write "break;";
-			ctx.writer#new_line;
-		);
-		(* ctx.writer#write "}" *)
-		(* ctx.return_needs_semicolon <- false; *)
-		ctx.writer#end_block
+		let t = typeToString ctx e.etype e.epos in
+		if isValue t then begin 
+			(* ctx.return_needs_semicolon <- true; *)
+			ctx.writer#write "switch"; 
+			push_require_pointer ctx false;
+			generateValue ctx (parent e); ctx.writer#begin_block;
+			pop_require_pointer ctx;
+			List.iter (fun (el,e2) ->
+				List.iter (fun e ->
+					ctx.writer#write "case "; generateValue ctx e; ctx.writer#write ":";
+				) el;
+				generateCaseBlock ctx e2;
+				ctx.writer#terminate_line;
+				ctx.writer#write "break;";
+				ctx.writer#new_line;
+			) cases;
+			(match def with
+			| None -> ()
+			| Some e ->
+				ctx.writer#write "default:";
+				generateCaseBlock ctx e;
+				ctx.writer#write "break;";
+				ctx.writer#new_line;
+			);
+			(* ctx.writer#write "}" *)
+			(* ctx.return_needs_semicolon <- false; *)
+			ctx.writer#end_block
+		end 
+		else begin
+			let compare casexpr = generateExpression ctx (mk (TBinop(Ast.OpEq, e, casexpr)) ctx.com.basic.tbool e.epos) in
+			let rec gencomp l =
+				match l with
+				| [] -> 
+						()
+				| [expr] -> 
+						compare expr
+				| head::tail -> 
+						compare head;
+						ctx.writer#write(" || ");
+						gencomp tail
+			in
+			let gencase (exprl, expr) =
+				ctx.writer#write("if (");
+				gencomp exprl;
+				ctx.writer#write(")");
+				ctx.writer#begin_block;
+				generateExpression ctx expr;
+				ctx.writer#terminate_line;
+				ctx.writer#end_block
+			in
+			let rec gencases cases = 
+				match cases with 
+				| [] -> ()
+				| [case] -> 
+						gencase case
+				| head::tail -> 
+						gencase head;
+						ctx.writer#new_line;
+						ctx.writer#write("else ");
+						gencases tail
+			in
+			gencases cases;
+			
+			(* TODO Default handling *)
+			match def with
+			| Some def -> 
+					ctx.writer#write("else");
+					ctx.writer#begin_block;
+					generateExpression ctx def;
+					ctx.writer#terminate_line;
+					ctx.writer#end_block
+			| _ -> ()
+		end
 	| TCast (e1,None) ->
 		ctx.writer#write "(";
 		let t = (typeToString ctx e.etype e.epos) in
