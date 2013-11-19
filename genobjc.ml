@@ -2171,18 +2171,23 @@ and generateExpression ctx e =
 		(*let uprefs = ref [] in*)
 		let locals = ref [] in
 		let rec findLocals = fun e -> 
-		   match e.eexpr with
-			 | TVars vl -> List.iter (fun (tvar,e) -> 
-						                          ctx.writer#write("\n//_________ tvar:"^tvar.v_name);
-																			locals := tvar :: !locals;
-																) vl;
-       | TLocal tvar when    not(List.mem tvar !locals) 
-				                  && not(List.mem tvar !funargs)
-			                   (* && not(List.mem tvar !uprefs) -> uprefs := tvar :: !uprefs; *)
-                          && not(List.mem tvar ctx.uprefs) -> ctx.uprefs <- tvar :: ctx.uprefs;
+			match e.eexpr with
+			| TVars vl -> List.iter (fun (tvar,e) -> 
+						ctx.writer#write("\n//_________ tvar:"^tvar.v_name);
+						locals := tvar :: !locals;
+					) vl;
+			| TLocal tvar 
+					when not(List.mem tvar !locals) 
+						&& not(List.mem tvar !funargs)
+						(* && not(List.mem tvar !uprefs) -> uprefs := tvar :: !uprefs; *)
+						&& not(List.mem tvar ctx.uprefs) -> ctx.uprefs <- tvar :: ctx.uprefs;
+			
 			 | _ -> iter findLocals e
 		  in 
-				List.iter (fun (key, expr) -> iter findLocals expr) fields;
+				List.iter (fun (key, expr) -> 
+					match expr.eexpr with
+					| TFunction _ -> iter findLocals expr
+					| _ -> ()) fields;
 			
     List.iter (fun (tvar) -> ctx.writer#write("\n//Dump funargs "^tvar.v_name^"\n") ) !funargs;
 	  List.iter (fun (tvar) -> ctx.writer#write("\n//Dump locals "^tvar.v_name^"\n") ) !locals;
