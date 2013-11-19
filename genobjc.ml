@@ -972,6 +972,21 @@ let endObjectRef ctx e =
 		end
 ;;
 
+let wrapValueAsObject ctx st f =
+	match st with
+		| "int"
+		|" uint"
+		| "BOOL" -> 
+				ctx.writer#write("[NSNumber numberWithInt:");
+				f();
+				ctx.writer#write("]") 
+		| "float" ->
+				ctx.writer#write("[NSNumber numberWithFloat:");
+				f();
+				ctx.writer#write("]") 
+		| _ -> f()
+;;
+
 let rec iterSwitchBreak in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
@@ -1377,7 +1392,8 @@ let rec generateCall ctx (func:texpr) arg_list =
 							let st = typeToString ctx t func.epos in
 							let prequired = not(isValue st) || tp name in
 							push_require_pointer ctx prequired;
-							generateValue ctx args_array_e.(!index);
+							let f = fun() -> generateValue ctx args_array_e.(!index) in
+							if prequired then wrapValueAsObject ctx st f else f();
 							pop_require_pointer ctx
 						end;
 						index := !index + 1;
@@ -1432,7 +1448,18 @@ and generateValueOpAsString ctx e =
 		generateValue ctx e;
 		ctx.writer#write ")";
 	| _ ->
-		generateValue ctx e
+		let f = fun fmt -> 
+			ctx.writer#write("[NSString stringWithFormat:@\" " ^ fmt ^ "\", ");
+			generateValue ctx e;
+			ctx.writer#write("]") in
+		let st = typeToString ctx e.etype e.epos in
+		(match st with
+		| "int"
+		| "uint"
+		| "BOOL" -> f "%i"
+		| "float" -> f "%f"
+		| _ ->
+			generateValue ctx e)
 
 and redefineCStatic ctx etype s =
 	debug ctx "\"-FA-\"";
@@ -2319,7 +2346,7 @@ and generateExpression ctx e =
 		push_require_pointer ctx true;
 		push_require_object ctx true;
 		ctx.writer#write "[@[";
-		concat ctx ", " (generateValue ctx) el;
+		concat ctx ", " (fun e -> wrapValueAsObject ctx (typeToString ctx e.etype e.epos) (fun() ->generateValue ctx e)) el;
 		ctx.writer#write "] mutableCopy]";
 		pop_require_pointer ctx;
 		pop_require_object ctx;
