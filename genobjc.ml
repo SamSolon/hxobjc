@@ -2825,7 +2825,16 @@ and generateValue ctx e =
 			ctx.writer#write(remapKeyword tenum_field.ef_name));
 		debug ctx "-ppp-";
 		if (not(ctx.generating_selector)) then ctx.writer#write("]");
-	| TTypeExpr _
+	| TTypeExpr module_type ->
+			(match module_type with
+			| TClassDecl tclass when tclass.cl_interface ->
+					ctx.writer#write("@protocol(");
+					generateExpression ctx e;
+					ctx.writer#write(")")
+			| _ ->
+					ctx.writer#write("[");
+					generateExpression ctx e;
+					ctx.writer#write(" class]"))
 	| TConst _
 	| TLocal _
 	| TArray _
