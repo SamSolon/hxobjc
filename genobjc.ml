@@ -1777,17 +1777,17 @@ and generateExpression ctx e =
 					generatePrivateVar ctx texpr tfield_access;
 					ctx.writer#write(" = ");
 					makeValue op e1 e2 (isPointer (typeToString ctx texpr.etype texpr.epos))
-			| TField(texpr, tfield_access) ->
+			| TField(texpr, tfield_access) -> 
 					ctx.writer#write("["); debug ctx "-yyy-";
 					generateExpression ctx texpr;
 					(match tfield_access with
-					| FInstance(tclass, tclass_field)-> 
+					| FInstance(_, tclass_field)
+					| FStatic(_, tclass_field)
+					| FAnon(tclass_field) -> 
 						(*ctx.writer#write("Assign TField FInstance Class " ^ (joinClassPath tclass.cl_path ".")  ^ " field:" ^ tclass_field.cf_name);*)
 						ctx.writer#write(" set" ^ (String.capitalize (remapKeyword tclass_field.cf_name)) ^":");
 						makeValue op e1 e2 false;
 						ctx.writer#write("]");
-					| FStatic(tclass, tclass_field) -> ctx.writer#write("Assign TField FStatic")
-					| FAnon(tclass_field) -> ctx.writer#write("Assign TField FAnon")
 					| FDynamic(string) -> 
 							debug ctx ("--FDynamic1 " ^ string ^ " -");
 							ctx.writer#write(" setValue:");
@@ -2971,7 +2971,7 @@ let generateProperty ctx field pos is_static =
 				ctx.imports_manager#add_enum(tenum)
 	| _ -> ()); (* TODO:Find the class from other types -- like TMono(t)? *)
 				
-	let id = field.cf_name in
+	let id = remapKeyword field.cf_name in
 	let t = match field.cf_type with TFun _ -> "id/*pfunction*/" | _ -> typeToString ctx field.cf_type pos in
 	let is_usetter = (match field.cf_kind with Var({v_write=AccCall}) -> true | _ -> false) in 
 	(* let class_name = (snd ctx.class_def.cl_path) in *)
