@@ -27,7 +27,7 @@ import objc.foundation.NSDate;
 import objc.foundation.NSCalendar;
 typedef NSDateComponents = Dynamic;
 
-@:framework("Foundation") @:category("NSDate") @:coreApi class Date {
+/*@:framework("Foundation")*/ @:category("NSDate") @:coreApi class Date {
 
 //	private var _seconds :Float;
 //	private var _calendar :NSCalendar;
