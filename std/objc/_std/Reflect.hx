@@ -44,7 +44,7 @@
 //    @functionCode('
 //        [o setValue:value forKey:field];
 //    ')
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
+	public /*inline*/ static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
 		//o.setValue (value, field);
 		untyped __objc__("[o setValue:value forKey:field]");
 	}
@@ -52,7 +52,7 @@
 //    @functionCode('
 //        return [o valueForKey:field];
 //    ')
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
+	public static /*inline*/ function getProperty( o : Dynamic, field : String ) : Dynamic {
 		//return null;
 		return untyped __objc__("[o valueForKey:field]");
 	}
