@@ -1896,7 +1896,7 @@ and generateExpression ctx e =
 			| TLazy _ -> ctx.writer#write "-TLazy-"
 			);
 			
-		| FAnon tclass_field -> debug ctx "-FAnon-";
+		| FAnon tclass_field -> debug ctx "-FAnonX-";
 			(* Accesing the field of an anonimous object with the modern notation obj[@key] *)
 			(* generateValue ctx e;
 			ctx.writer#write ("[@\"" ^ (field_name fa) ^ "\"]") *)
@@ -1997,7 +1997,7 @@ and generateExpression ctx e =
 		let p = t_path t in
 		(* if ctx.generating_calls = 0 then begin *)
 			(match t with
-			| TClassDecl c -> (* ctx.writer#write "TClassDecl";  *)
+			| TClassDecl c ->  (*ctx.writer#write("/* TClassDecl:" ^ joinClassPath c.cl_path "." ^ " */");*)  
 				(* if ctx.generating_c_call then ctx.writer#write "-is-c-call-"
 				else if not ctx.generating_c_call then ctx.writer#write "-not-c-call-"; *)
 				if not ctx.generating_c_call then ctx.writer#write (remapHaxeTypeToObjc ctx true p e.epos);
@@ -2804,8 +2804,8 @@ and generateValue ctx e =
 		| FAnon tclass_field -> 
 			generateExpression ctx texpr;
 			ctx.writer#write(" ");
-			debug ctx "-FAnon-";
-			ctx.writer#write(remapKeyword tclass_field.cf_name)
+			debug ctx "-FAnonY-";
+			ctx.writer#write("performSelector:@selector(" ^remapKeyword tclass_field.cf_name ^ ")")
 		| FDynamic(fname) -> 
 			debug ctx "-FDynamic3-"; 
 			startObjectRef ctx e;
@@ -3214,6 +3214,7 @@ let generatePrivate started ctx _ field =
 			startGeneratePrivate ctx
 		end;
 		ctx.writer#new_line;
+		(*ctx.writer#write("/* " ^ s_type (print_context()) field.cf_type ^ "*/");*)
 		ctx.writer#write(t ^ " " ^ addPointerIfNeeded t ^ generatePrivateName field.cf_name ^ ";")
 	end
 ;;
