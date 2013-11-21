@@ -1732,11 +1732,20 @@ and generateExpression ctx e =
 				(match e.eexpr with TField(tfe, FInstance(tc,tcf)) -> debug ctx ("|TCall(e).instance "^(s_expr_kind tfe)^"|") | _ -> ())
 				| _ -> ();); 
 			if (s_op = "!=") then ctx.writer#write("!");
-			ctx.writer#write "[";
-			generateValueOp ctx e1;
-			ctx.writer#write " isEqualToString:";
-			generateValueOp ctx e2;
-			ctx.writer#write "]";
+			(* Special case null *)
+			(match e2.eexpr with
+			| TConst(TNull) ->
+				ctx.writer#write("((");
+				generateValueOp ctx e1;
+				ctx.writer#write(") == nil || ((id)");
+				generateValueOp ctx e1;
+				ctx.writer#write(") == [NSNull null])")
+			| _ ->
+				ctx.writer#write "[";
+				generateValueOp ctx e1;
+				ctx.writer#write " isEqualToString:";
+				generateValueOp ctx e2;
+				ctx.writer#write "]")
 		end else if (s_op = "=" || match op with OpAssignOp _ ->true | _ -> false) then begin
 			let makeValue op exp1 exp2 as_object = 
 				let s_e2type = (typeToString ctx (follow e2.etype) e2.epos) in
