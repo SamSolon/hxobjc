@@ -1392,8 +1392,10 @@ let rec generateCall ctx (func:texpr) arg_list =
 							let st = typeToString ctx t func.epos in
 							let prequired = not(isValue st) || tp name in
 							push_require_pointer ctx prequired;
-							let f = fun() -> generateValue ctx args_array_e.(!index) in
-							if prequired then wrapValueAsObject ctx st f else f();
+							let vexpr = args_array_e.(!index) in
+							let et = typeToString ctx vexpr.etype vexpr.epos in
+							let f = fun() -> generateValue ctx vexpr in
+							if prequired then wrapValueAsObject ctx et f else f();
 							pop_require_pointer ctx
 						end;
 						index := !index + 1;
