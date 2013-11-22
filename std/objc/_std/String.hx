@@ -69,7 +69,7 @@
 		is returned.
 	**/
 	public function charAt(index : Int) : String {
-		return null;//untyped this.characterAtIndex( index );
+		return untyped __objc__("[self substringWithRange:NSMakeRange(index, 1)];");
 	}
 
 	/**
