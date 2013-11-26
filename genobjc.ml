@@ -2817,11 +2817,20 @@ and generateValue ctx e =
 			ctx.writer#write(" ");
 			debug ctx "-FStatic-";
 			ctx.writer#write(remapKeyword tclass_field.cf_name)
-		| FAnon tclass_field -> 
-			generateExpression ctx texpr;
-			ctx.writer#write(" ");
-			debug ctx "-FAnonY-";
-			ctx.writer#write("performSelector:@selector(" ^remapKeyword tclass_field.cf_name ^ ")")
+		| FAnon tclass_field ->
+			(match tclass_field.cf_kind with 
+			| Var _  ->
+				startObjectRef ctx e;
+				generateExpression ctx texpr;
+				ctx.writer#write(" ");
+				ctx.writer#write("valueForKey:@\"" ^ remapKeyword tclass_field.cf_name ^ "\"");
+				endObjectRef ctx e
+			| Method _ ->
+				generateExpression ctx texpr;
+				ctx.writer#write(" ");
+				debug ctx "-FAnonY-";
+				ctx.writer#write("performSelector:@selector(" ^remapKeyword tclass_field.cf_name ^ ")")
+			)
 		| FDynamic(fname) -> 
 			debug ctx "-FDynamic3-"; 
 			startObjectRef ctx e;
