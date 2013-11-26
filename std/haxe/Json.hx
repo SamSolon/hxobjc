@@ -31,7 +31,8 @@ package haxe;
 	import objc.foundation.NSString;
 	import objc.foundation.NSData;
 	import objc.foundation.NSJSONSerialization;
-#end
+class Json {
+#else
 #if (flash11 && !haxeJSON)
 @:native('JSON') extern
 #end
@@ -400,7 +401,7 @@ class Json {
 	}
 
 #end
-
+#end
 	public static function parse( text : String ) : Dynamic {
 		#if (php && !haxeJSON)
 		return phpJsonDecode(text);
@@ -409,7 +410,7 @@ class Json {
 		#elseif ((objc_version>=5) && !haxeJSON)
 			var err :NSError = null;
 			var data :NSData = untyped text.dataUsingEncoding(NSUTF8StringEncoding);
-			var obj :Dynamic = NSJSONSerialization.JSONObjectWithData (data, NSJSONReadingMutableLeaves, err);
+			var obj :Dynamic = untyped __objc__("[NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableLeaves error:&err]");
 			return obj;
 		#else
 		return new Json().doParse(text);
