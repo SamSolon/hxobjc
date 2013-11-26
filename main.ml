@@ -1226,7 +1226,7 @@ try
 			let rec loop = function
 				| [] -> ()
 				| (v,def) :: l ->
-					if v >= com.objc_version then begin
+					if v<= com.objc_version then begin
 						print_endline ("-> define flag: ios" ^ def);
 						Common.raw_define com ("ios" ^ def);
 					end;
