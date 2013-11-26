@@ -424,8 +424,8 @@ class Json {
 		return null;
 		#elseif ((objc_version>=5.0) && !haxeJSON)
 			var err :NSError = null;
-			var data :NSData = NSJSONSerialization.dataWithJSONObject (value, NSJSONWritingPrettyPrinted, err);
-			var str :String = untyped __objc__("[NSMutableString stringWithData:data]");
+			var data :NSData = untyped __objc__("[NSJSONSerialization dataWithJSONObject:value options:NSJSONWritingPrettyPrinted error:&err]");
+			var str :String = untyped __objc__("[[NSMutableString alloc] initWithData:data encoding:NSUTF8StringEncoding]");
 			return str;
 		#else
 		return new Json().toString(value, replacer);
