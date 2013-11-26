@@ -967,7 +967,7 @@ let endObjectRef ctx e =
 		| "int" -> ctx.writer#write("] intValue")
 		| "uint" -> ctx.writer#write("] unsignedIntegerValue")
 		| "float" -> ctx.writer#write("] floatValue")
-		| "BOOL" -> ctx.writer#write("[ boolValue")
+		| "BOOL" -> ctx.writer#write("] boolValue")
 		| _ -> ()
 		end
 ;;
