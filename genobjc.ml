@@ -3558,8 +3558,13 @@ let pbxproj common_ctx files_manager =
 			end
 		) common_ctx.objc_libs;
 		if not !used then begin
-			let path = "System/Library/Frameworks/"^name^".framework" in
-			file#write ("		"^fileRef^" /* "^name^".framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = "^name^".framework; path = "^path^"; sourceTree = SDKROOT; };\n");
+			if Str.string_match (Str.regexp ".*dylib$") name 0 then begin
+				let fname = Filename.basename name in
+				file#write ("		"^fileRef^" /* "^fname^" */ = {isa = PBXFileReference; lastKnownFileType = compiled.mach-o.dylib; name = \""^fname^"\"; path = \""^name^"\"; sourceTree = SDKROOT; };\n");
+			end else begin
+				let path = "System/Library/Frameworks/"^name^".framework" in
+				file#write ("		"^fileRef^" /* "^name^".framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = \""^name^".framework\"; path = \""^path^"\"; sourceTree = SDKROOT; };\n");
+			end
 		end
 	) files_manager#get_frameworks;
 	
