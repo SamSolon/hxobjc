@@ -146,6 +146,7 @@ type context = {
 	mutable objc_owner : string option;
 	mutable objc_linker_flags : string list;
 	mutable objc_frameworks : string list;
+	mutable objc_native : string list;
 	mutable ios_orientations : string list;
 	mutable objc_supporting_files : string option;
 	(* typing *)
@@ -654,6 +655,7 @@ let create v args =
 		objc_supporting_files = None;
 		objc_linker_flags = [];
 		objc_frameworks = [];
+		objc_native = [];
 		load_extern_type = [];
 		defines_signature = None;
 		get_macros = (fun() -> None);

@@ -3422,6 +3422,26 @@ let pbxproj common_ctx files_manager =
 	objectVersion = 46;
 	objects = {");
 	
+	(* Add any native files *)
+	let root = common_ctx.file in
+	List.iter (fun f -> 
+		let rec process base file =
+			let filepath = Filename.concat base file in
+			let abspath = Filename.concat root filepath in
+			if Sys.is_directory abspath then
+				Array.iter (fun f -> process filepath f) (Sys.readdir abspath)
+			else begin
+				let basepath = Str.split(Str.regexp (Filename.dir_sep)) base in 
+				let ext = "." ^ List.hd (List.rev (Str.split (Str.regexp "\\.") file)) in 
+				let fname = Filename.chop_extension file in
+				match ext with
+				| ".m" | ".c" -> 
+					files_manager#register_source_file(List.tl basepath, fname) ext
+				| _ -> ()
+			end in
+		process app_name f
+	) common_ctx.objc_native;
+	
 	(* Begin PBXBuildFile section *)
 	(* It holds .m files, resource files, and frameworks *)
 	file#write ("\n\n/* Begin PBXBuildFile section */\n");
@@ -3441,7 +3461,7 @@ let pbxproj common_ctx files_manager =
 			) !packages;
 			if (!can_add_new_package) then packages := List.append !packages [path];
 		end;
-		if ext=".m" then file#write ("		"^uuid^" /* "^(snd path)^ext^" in Sources */ = {isa = PBXBuildFile; fileRef = "^fileRef^"; };\n");
+		match ext with ".m" | ".c" ->file#write ("		"^uuid^" /* "^(snd path)^ext^" in Sources */ = {isa = PBXBuildFile; fileRef = "^fileRef^"; };\n") | _ -> ();
 	) files_manager#get_source_files;
 	
 	(* Register haxe packages as source_folders *)
@@ -3533,7 +3553,7 @@ let pbxproj common_ctx files_manager =
 				let prefix = ref "" in
 				let comps = Str.split (Str.regexp "/") common_ctx.file in
 				List.iter (fun p -> prefix := (!prefix) ^ "../") comps;
-				file#write ("		"^fileRef^" /* "^name^".framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = "^name^".framework; path = "^(!prefix)^path^"; sourceTree = \"<group>\"; };\n");
+				file#write ("		"^fileRef^" /* "^name^".framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = \""^name^".framework\"; path = \""^(!prefix)^path^"\"; sourceTree = \"<group>\"; };\n");
 				used := true;
 			end
 		) common_ctx.objc_libs;
@@ -3545,16 +3565,20 @@ let pbxproj common_ctx files_manager =
 	
 	List.iter ( fun (uuid, fileRef, path, ext) -> 
 		let full_path = (joinClassPath path "/") in
-		let file_type = (if ext = ".h" then "h" else "objc") in
+		let file_type = match ext with
+		| ".h" -> "h"
+		| ".c" -> "c"
+		| _ -> "objc" in
 		if (fst path = []) then
-			file#write ("		"^fileRef^" /* "^full_path^ext^" */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c."^file_type^"; path = "^full_path^ext^"; sourceTree = \"<group>\"; };\n")
+			file#write ("		"^fileRef^" /* "^full_path^ext^" */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c."^file_type^"; path = \""^full_path^ext^"\"; sourceTree = \"<group>\"; };\n")
 		else
-			file#write ("		"^fileRef^" /* "^full_path^ext^" */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c."^file_type^"; name = "^(snd path)^ext^"; path = "^app_name^"/"^full_path^ext^"; sourceTree = SOURCE_ROOT; };\n");
+			file#write ("		"^fileRef^" /* "^full_path^ext^" */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c."^file_type^"; name = \""^(snd path)^ext^"\"; path = \""
+			^(match fst path with ".."::_ -> full_path | _ -> app_name^"/"^full_path)^ext^"\"; sourceTree = SOURCE_ROOT; };\n");
 	) files_manager#get_source_files;
 	
 	List.iter ( fun (uuid, fileRef, path) -> 
 		let n = if List.length (fst path) > 0 then List.hd (fst path) else (snd path) in
-		file#write ("		"^fileRef^" /* "^(joinClassPath path "/")^" */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "^n^"; sourceTree = \"<group>\"; };\n"); 
+		file#write ("		"^fileRef^" /* "^(joinClassPath path "/")^" */ = {isa = PBXFileReference; lastKnownFileType = folder; path = \""^n^"\"; sourceTree = \"<group>\"; };\n"); 
 	) files_manager#get_source_folders;
 	
 	List.iter ( fun (uuid, fileRef, path, ext) -> 
@@ -3841,7 +3865,7 @@ let pbxproj common_ctx files_manager =
 			files = (\n"^build_file_main^" /* main.m in Sources */,\n");
 	
 	List.iter ( fun (uuid, fileRef, path, ext) -> 
-		if ext=".m" then file#write ("				"^uuid^" /* "^(joinClassPath path "/")^ext^" in Sources */,\n");
+		match ext with ".m" | ".c" -> file#write ("				"^uuid^" /* "^(joinClassPath path "/")^ext^" in Sources */,\n") | _ -> ();
 	) files_manager#get_source_files;
 	
 	file#write ("			);

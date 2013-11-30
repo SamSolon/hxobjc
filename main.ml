@@ -1051,6 +1051,9 @@ try
 		("-objc-linker-flag",Arg.String (fun name ->
 			com.objc_linker_flags <- name :: com.objc_linker_flags
 		),"<path> : add a custom framework");
+		("-objc-native",Arg.String (fun name ->
+			com.objc_native <- name :: com.objc_native
+		),"<path> : add native code file or contents of directory");
 		("-ios-orientation",Arg.String (fun v ->
 			com.ios_orientations <- v :: com.ios_orientations
 		),"<orientation> : add iOS orientations. e.g. UIInterfaceOrientationPortrait");
