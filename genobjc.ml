@@ -651,6 +651,12 @@ let is_message_target tfield_access =
 	| _ -> false;
 ;;
 
+let isSuper texpr =
+	match texpr.eexpr with
+	| TConst TSuper -> true
+	| _ -> false
+;;
+
 (* Should we access tvar by messaging*)
 let isMessageAccess ctx tvar =
 	(List.mem tvar ctx.uprefs) || (Hashtbl.mem ctx.blockvars tvar.v_name)
@@ -1308,7 +1314,6 @@ let rec generateCall ctx (func:texpr) arg_list =
 			| TAbstract _ -> ctx.writer#write "TAbstract";
 		); *)
 		
-		
 		(* Check if the called function has a custom selector defined *)
 		let sel = (match func.eexpr with
 			(* TODO: TStatic *)
@@ -1329,10 +1334,10 @@ let rec generateCall ctx (func:texpr) arg_list =
 *)
 		ctx.generating_custom_selector <- (String.length sel > 0);
 		let generating_with_args = match func.etype with TFun(params, t) -> List.length params > 0 | _ -> List.length arg_list > 0 in
-		if (generating_with_args) then begin
+		if (generating_with_args || isSuper func) then begin
 			ctx.writer#write("[");
 			debug ctx "-xxx";
-			match func.eexpr with
+			(match func.eexpr with
 			| TField(texpr, tfield_access) ->
 (*
 				let s_type = Type.s_type(print_context()) in
@@ -1358,26 +1363,25 @@ let rec generateCall ctx (func:texpr) arg_list =
 				generateValue ctx texpr;
 				
 				(* The first selector isn't generated since it's the name so we just write it out here*)
-				ctx.writer#write(" " ^ Type.field_name tfield_access);
-			
+				ctx.writer#write(" " ^ (remapKeyword (Type.field_name tfield_access)));
+			| TConst TSuper ->
+				(* Only way this should happen is in a CTOR -- so call the init method*)
+				generateValue ctx func;
+				ctx.writer#write(" init")
 			| _ ->
 				let s_type = Type.s_type(print_context()) in
 				 print_endline("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func));
-				 error ("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func) ^ (s_expr s_type func)) func.epos;
+				 error ("!!!!!!!!!!!!!!!!!!!! Unhandled call expression type " ^ (s_expr_kind func) ^ (s_expr s_type func)) func.epos);
 		end else
 			generateValue ctx func;
-
+	
 		if generating_with_args then begin
 			let tp = isTypeParam func.eexpr in
 			let sel_list = if (String.length sel > 0) then Str.split_delim (Str.regexp ":") sel else [] in
 			let sel_arr = Array.of_list sel_list in
 			let args_array_e = Array.of_list arg_list in
 			let index = ref 0 in
-			let rec gen et =
-			(match et with
-				| TFun (args, ret) ->
-					(*let args_array_e = Array.of_list args in*)
-					if !index < (List.length args) then
+			let genparams plist =
 					List.iter ( fun (name, b, t) ->
 						if Array.length sel_arr > 0 then
 							ctx.writer#write (" "^sel_arr.(!index)^":")
@@ -1399,14 +1403,20 @@ let rec generateCall ctx (func:texpr) arg_list =
 							pop_require_pointer ctx
 						end;
 						index := !index + 1;
-					) args;
+					) plist in 
+			let rec gen et =
+				let err tag = error("Can't generate parameter list for call " ^ tag ^ " of " ^ s_type (print_context()) et) func.epos in
+			(match et with
+				| TFun (args, ret) ->
+					(*let args_array_e = Array.of_list args in*)
+						genparams args
 					(* ctx.generating_method_argument <- false; *)
 				(* Generated in Array *)
 				| TMono r -> (match !r with 
 					| None -> ctx.writer#write "-TMonoNone"
 					| Some v -> gen v)
 				| TEnum (e,tl) -> ctx.writer#write "-TEnum"
-				| TInst (c,tl) -> ctx.writer#write "-TInst"
+				(*| TInst (c,tl) -> ctx.writer#write("-TInst1 " ^ s_type (print_context()) et) String.concat "," (List.map (function t -> s_t t) tl))*)
 				| TType (t,tl) -> ctx.writer#write "-TType"
 				| TAbstract (a,tl) -> ctx.writer#write "-TAbstract"
 				| TAnon a -> ctx.writer#write "-TAnon-"
@@ -1414,11 +1424,22 @@ let rec generateCall ctx (func:texpr) arg_list =
 					ctx.writer#write ":";
 					concat ctx " :" (generateValue ctx) arg_list;
 				| TLazy f -> ctx.writer#write "-TLazy call-"
+				| TInst _ when isSuper func -> (* should be an overridden CTOR call *)
+					(* create a selector from the super ctor def *)
+					(match func.etype with
+					| TInst({cl_constructor = Some tcf}, _) ->
+						(match tcf.cf_type with 
+							| TFun(plist, t) -> 
+									genparams plist 
+							| _ -> err "a")
+					| _ -> err "b")
+				| _ -> err "c"
 			) in
 			gen func.etype;
 			debug ctx "-xxx-";
 			ctx.writer#write "]";
 		end
+		else if isSuper func then ctx.writer#write("]")
 	end
 	)
 	
@@ -1958,7 +1979,7 @@ and generateExpression ctx e =
 						| None -> ctx.writer#write "-TMonoNone"
 						| Some v -> ())
 					| TEnum (e,tl) -> ctx.writer#write "-TEnum"
-					| TInst (c,tl) -> ctx.writer#write "-TInst"
+					| TInst (c,tl) -> ctx.writer#write "-TInst2"
 					| TType (t,tl) -> ctx.writer#write "-TType"
 					| TAbstract (a,tl) -> ctx.writer#write "-TAbstract"
 					| TAnon a -> ctx.writer#write "-TAnon-"
@@ -2076,12 +2097,7 @@ and generateExpression ctx e =
 			ctx.writer#begin_block;
 			ctx.writer#new_line;
 		end;
-		if ctx.generating_constructor then begin
-			ctx.writer#write "self = [super init];";
-			ctx.writer#new_line;
-			(* ctx.writer#write "me = self;";
-			ctx.writer#new_line *)
-		end;
+
 		if Hashtbl.length ctx.function_arguments > 0 then begin
 			ctx.writer#write "// Optional arguments";
 			ctx.writer#new_line;
@@ -2095,19 +2111,15 @@ and generateExpression ctx e =
 			ctx.writer#new_line;
 		end;
 		List.iter (fun e ->
-			(* Ignore the call to super from the main method: super(); *)
+			(* Assign the result of a super call to self *)
 			(match e.eexpr with
 			| TCall (func, arg_list) ->
-				(match func.eexpr with
-					| TConst c -> ()
-					| _ ->
-						generateExpression ctx e;
-						ctx.writer#terminate_line
-				);
-			| _ -> 
-				generateExpression ctx e;
-				ctx.writer#terminate_line;
+					if isSuper func then 
+						ctx.writer#write("self = ")
+			| _ -> ()
 			);
+			generateExpression ctx e;
+			ctx.writer#terminate_line;
 			(* After each new line reset the state of  *)
 			ctx.generating_calls <- 0;
 			ctx.generating_fields <- 0;
