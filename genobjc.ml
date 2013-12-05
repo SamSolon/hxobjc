@@ -878,7 +878,7 @@ let rec typeToString ctx t p =
 			^(if c.cl_interface then ">" else "")
 		| KTypeParameter _ | KExtension _ | KExpr _ | KMacroType | KAbstractImpl _ -> "id")
 	| TFun (_, TFun _)
-	| TFun ((_, _,TFun _)::_, _)
+(*	| TFun ((_, _,TFun _)::_, _)*)
 (*	| TFun (_, TAbstract({a_path = ([], "Void")}, []))*)
 		-> "id/*function*/"
 	| TFun (args, ret) ->
