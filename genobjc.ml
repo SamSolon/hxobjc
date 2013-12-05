@@ -1788,6 +1788,13 @@ and generateExpression ctx e =
 					generatePrivateVar ctx texpr tfield_access;
 					ctx.writer#write(" = ");
 					makeValue op e1 e2 (isPointer (typeToString ctx texpr.etype texpr.epos))
+			| TField(texpr, tfield_access) when not(is_message_target tfield_access) ->
+					let t = typeToString ctx e1.etype e1.epos in
+					(*ctx.writer#write("/* e1type:" ^ t ^ "*/");*)
+					let asobj = not(isValue t) in 
+					generateExpression ctx texpr;
+					ctx.writer#write("." ^ (field_name tfield_access) ^ " = ");
+					makeValue op e1 e2 asobj ;
 			| TField(texpr, tfield_access) -> 
 					ctx.writer#write("["); debug ctx "-yyy-";
 					generateExpression ctx texpr;
