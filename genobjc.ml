@@ -974,13 +974,13 @@ let rec typeToString ctx t p =
 			| [t] ->
 				(* Saw it generated in the function optional arguments *)
 				(match follow t with
-				| TAbstract ({ a_path = [],"UInt" },_) -> "int"
-				| TAbstract ({ a_path = [],"Int" },_) -> "int"
-				| TAbstract ({ a_path = [],"Float" },_) -> "float"
-				| TAbstract ({ a_path = [],"Bool" },_) -> "BOOL"
-				| TInst ({ cl_path = [],"Int" },_) -> "int"
-				| TInst ({ cl_path = [],"Float" },_) -> "float"
-				| TEnum ({ e_path = [],"Bool" },_) -> "BOOL"
+				| TAbstract ({ a_path = [],"UInt" },_) -> "NSNumber" (*"int"*)
+				| TAbstract ({ a_path = [],"Int" },_) -> (*"int"*) "NSNumber"
+				| TAbstract ({ a_path = [],"Float" },_) -> (*"float"*) "NSNumber"
+				| TAbstract ({ a_path = [],"Bool" },_) -> (*"BOOL"*) "NSNumber"
+				| TInst ({ cl_path = [],"Int" },_) -> (*"int"*) "NSNumber"
+				| TInst ({ cl_path = [],"Float" },_) -> (*"float"*) "NSNumber"
+				| TEnum ({ e_path = [],"Bool" },_) -> (*"BOOL"*) "NSNumber"
 				| _ -> typeToString ctx t p)
 			| _ -> assert false);
 		| _ ->
