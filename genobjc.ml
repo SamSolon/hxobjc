@@ -998,6 +998,30 @@ let isString ctx e =
 	is
 ;;
 
+(* Coerce a value fromT toT *)
+(* This version only converts numbers from/to objects which are assume to be NSNumber *)
+let coercion ctx fromT toT =
+	let sfrom = typeToString ctx fromT null in
+	let sto = typeToString ctx toT null in
+	(*ctx.writer#write("/*coercion from:" ^ sfrom ^ " to:" ^sto ^ "*/");*)
+	let fromisv = isValue sfrom in
+	let toisv = isValue sto in
+	if fromisv != toisv then begin (* value to/from object *)
+		if toisv then
+			match sto with
+			| "int"|"bool" -> ctx.writer#write("["); fun() -> ctx.writer#write(" intValue]")
+			| "float" -> ctx.writer#write("["); fun() -> ctx.writer#write(" floatValue]")
+			| _ -> fun() -> () 
+		else
+			match sfrom with
+			| "int"|"bool" -> ctx.writer#write("[NSNumber numberWithInt:"); fun() -> ctx.writer#write("]")
+			| "float" -> ctx.writer#write("[NSNumber numberWithFloat:"); fun() -> ctx.writer#write("]")
+			| _ -> fun() -> ()
+	end
+	else 
+		fun() -> () (* do nothing *)
+;;
+
 (* We're about to generate something that will yield an object ref, if our caller didn't want an object we'll*)
 (* have to deref based on the type *)
 let startObjectRef ctx e =
@@ -1889,12 +1913,17 @@ and generateExpression ctx e =
 			let islogop = (s_op = "&&") || (s_op = "||") in
 			if islogop then ctx.writer#write("(");
 			ctx.generating_left_side_of_operator <- true;
+			(*let s_type = Type.s_type(print_context()) in 
+			ctx.writer#write("/* " ^ s_expr_kind e1 ^ "/" ^ s_expr s_type e1 ^ "/" ^ s_t e1.etype ^ "*/");*)
+			let exprt expr = match t_of ctx expr.eexpr with Some t -> t | _ -> expr.etype in
 			generateValueOp ctx e1;
 			ctx.generating_left_side_of_operator <- false;
 			ctx.writer#write (Printf.sprintf " %s " s_op);
 			ctx.generating_right_side_of_operator <- true;
 			push_require_pointer ctx false;
+			let c = coercion ctx (exprt e2) (exprt e1) in
 			generateValueOp ctx e2;
+			c();
 			pop_require_pointer ctx;
 			ctx.generating_right_side_of_operator <- false;
 			if islogop then ctx.writer#write(")");
@@ -2556,8 +2585,13 @@ and generateExpression ctx e =
 								ctx.writer#write (if !index = 0 then ":" else (" "^name^":"));
 								if !index >= Array.length args_array_e then
 									ctx.writer#write "nil"
-								else
-									generateValue ctx args_array_e.(!index);
+								else begin
+									let v = args_array_e.(!index) in
+									let vt = t_of_texpr ctx v in
+									let finish = coercion ctx vt t in
+									generateValue ctx v;
+									finish()
+								end;
 								index := !index + 1;
 							) args;
 						| _ -> ctx.writer#write " \"-dynamic_arguments_constructor-\" "));
@@ -2808,6 +2842,7 @@ and generateCaseBlock ctx e =
 	
 and generateValue ctx e =
 	debug ctx ("\"-V-"^(Type.s_expr_kind e)^">\"");
+	let exprt = e.etype in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some r -> r)) t_dynamic e.epos,
@@ -3009,11 +3044,16 @@ and generateValue ctx e =
 		ctx.writer#write "(";
 		generateValue ctx cond;
 		ctx.writer#write " ? ";
+		let finishthen = coercion ctx (t_of_texpr ctx e) exprt in
 		generateValue ctx e;
+		finishthen();
 		ctx.writer#write " : ";
 		(match eo with
 		| None -> ctx.writer#write "nil"
-		| Some e -> generateValue ctx e);
+		| Some e -> 
+				let finishelse = coercion ctx (t_of_texpr ctx e) exprt in
+				generateValue ctx e;
+				finishelse());
 		ctx.writer#write ")"
 	| TSwitch (cond,cases,def) ->
 		let v = value true in
