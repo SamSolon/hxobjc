@@ -26,49 +26,56 @@ import objc.foundation.NSDictionary;
 @:framework("Foundation")
 //@:category("NSMutableDictionary")
 @:coreApi
-class IntMap<T> implements Map.IMap<Int,T> extends NSMutableDictionary
+class IntMap<T> implements Map.IMap<Int,T> 
 {
-	
+	private var _map:NSMutableDictionary;
+ 	
  	public function new() : Void {
-		super();
+ 		_map = new NSMutableDictionary();
  	}
 
  	public function set( key : Int, value : T ) : Void {
  		//untyped this.setObject (value, key);
- 		untyped __objc__("[self setObject:[NSString stringWithFormat:@\"%i\", value] forKey:[NSString stringWithFormat:@\"%i\",key]]");
+ 		//untyped __objc__("[self setObject:[NSString stringWithFormat:@\"%i\", value] forKey:[NSString stringWithFormat:@\"%i\",key]]");
+ 		_map.setObject(value, key);
  	}
 
  	public function get( key : Int ) : Null<T> {
  		//return untyped this.objectForKey ( key );
- 		return untyped __objc__("[self objectForKey:[NSString stringWithFormat:@\"%i\",key]]");
+ 		//return untyped __objc__("[self objectForKey:[NSString stringWithFormat:@\"%i\",key]]");
+ 		return _map.objectForKey(key);
  	}
 
  	public function exists( key : Int ) : Bool {
  		//return untyped this.objectForKey ( key ) != null;
- 		return untyped __objc__("[self objectForKey:[NSString stringWithFormat:@\"%i\",key]] != nil");
+ 		//return untyped __objc__("[self objectForKey:[NSString stringWithFormat:@\"%i\",key]] != nil");
+ 		return get(key) != null;
  	}
 
  	public function remove( key : Int ) : Bool {
  		//return untyped this.removeObjectForKey ( key );
  		if (exists(key)) {
- 			untyped __objc__("[self removeObjectForKey:[NSString stringWithFormat:@\"%i\",key]]");
+ 			//untyped __objc__("[self removeObjectForKey:[NSString stringWithFormat:@\"%i\",key]]");
+ 			_map.removeObjectForKey(key);
  			return true;
  		}
  		return false;
  	}
 
  	public function keys() : Iterator<Int> {
- 		var a:Array<Int> = untyped this.allKeys();
+ 	//TODO: Fix this!!!!
+ 		var a:Array<Int> = untyped _map.allKeys();
  		return a.iterator();
  	}
 
  	public function iterator() : Iterator<T> {
- 		var a:Array<Dynamic> = untyped this.allValues();
+ 	//TODO: Fix this!!!!
+ 		var a:Array<Dynamic> = _map.allValues();
  		return a.iterator();
  	}
 
  	public function toString() : String {
- 		return untyped this.description();
+ 		return _map.description();
  	}
 
 }
