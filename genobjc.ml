@@ -740,6 +740,55 @@ let s_const_typename = function
 	| TSuper -> "super"
 ;;	
 
+(* Can we return a reasonable t for a texpr_expr so we can handle coercion? *)
+let rec t_of ctx texpr_expr = match texpr_expr with
+	| TConst(TInt _) -> Some ctx.com.basic.tint
+	| TConst(TFloat _) -> Some ctx.com.basic.tfloat
+	| TConst(TString _) -> Some ctx.com.basic.tstring
+	| TConst(TBool _) -> Some ctx.com.basic.tbool
+	| TConst(TNull) -> None
+	| TConst(TThis) -> None (* TODO: Type of this? *)
+	| TConst(TSuper) -> None (* TODO: Type of super? *)
+	| TLocal(tvar) -> Some tvar.v_type
+	| TArray(e1, e2) -> None (* TODO: ????? *)
+	| TBinop(_, e1, e2) -> Some e1.etype (* TODO: Should probably be none!!!!*)
+	| TField(_, tfa) -> (match extract_field tfa with Some tcf -> Some tcf.cf_type | _ -> None)
+	| TTypeExpr(TClassDecl(_)) -> None (* TODO: A type for classes? *)
+	| TTypeExpr(TEnumDecl(_)) -> None (* TODO: Determine how we are representing the enum (fakeEnum) *)
+	| TTypeExpr(TTypeDecl(tdef)) -> Some tdef.t_type
+	| TTypeExpr(TAbstractDecl(tabstract)) -> Some tabstract.a_this (* TODO: no sure about this *)
+	| TParenthesis(texpr) -> t_of ctx texpr.eexpr
+	| TObjectDecl _ -> None (* TODO: check this *)
+	| TArrayDecl _ -> None (* TODO: check this *)
+	| TCall({etype=TFun(_, t)}, _) -> Some t
+	| TCall(texpr, _) -> Some texpr.etype
+	| TNew(tclass, _, _) -> None (* TODO: A type for classes? *)
+	| TUnop(_, _, texpr) -> Some texpr.etype
+	| TFunction(tfunc) -> Some tfunc.tf_type
+	| TVars _ -> None
+	| TBlock _ -> None (* TODO: Check this *) 
+	| TFor _ -> None (* TODO: Check this *) 
+	| TIf _ -> None (* TODO: Check this *) 
+	| TWhile _-> None (* TODO: Check this *) 
+	| TSwitch _-> None (* TODO: Check this *) 
+	| TPatMatch _ -> None (* TODO: Check this *) 
+	| TTry _ -> None (* TODO: Check this *) 
+	| TReturn(Some texpr) -> Some texpr.etype
+	| TReturn _ -> None
+	| TBreak -> None
+	| TContinue -> None
+	| TThrow texpr -> Some texpr.etype
+	| TCast(texpr, _) -> Some texpr.etype
+	| TMeta(_, texpr) -> Some texpr.etype
+	| TEnumParameter(texpr, _, _) -> Some texpr.etype
+;;
+
+let t_of_texpr ctx texpr =
+	match t_of ctx texpr.eexpr with
+	| Some t -> t
+	| None -> texpr.etype
+;;
+ 
 (* Generating correct type *)
 let remapHaxeTypeToObjc ctx is_static path pos =
 	match path with
