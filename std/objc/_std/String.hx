@@ -82,7 +82,16 @@
 		only works on String literals of length 1.
 	**/
 	public function charCodeAt( index : Int) : Null<Int> {
-		return untyped this.characterAtIndex( index );
+		var c:Int;
+		
+		try {
+			c = untyped this.characterAtIndex( index );
+		}
+		catch (e:Dynamic) {
+			return null;
+		}
+
+		return c;
 	}
 
 	/**
