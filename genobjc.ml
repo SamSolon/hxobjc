@@ -342,6 +342,7 @@ type context = {
 	mutable generating_string_append : int;
 	mutable saved_require_pointer : bool list;
 	mutable saved_require_object : bool list;
+	mutable saved_return_types : t list;
 	mutable return_needs_semicolon : bool;
 	mutable gen_uid : int;
 	mutable local_types : t list;
@@ -382,6 +383,7 @@ let newContext common_ctx writer imports_manager file_info = {
 	generating_string_append = 0;
 	saved_require_pointer = [false];
 	saved_require_object = [false];
+	saved_return_types = [];
 	return_needs_semicolon = false;
 	gen_uid = 0;
 	local_types = [];
@@ -425,6 +427,17 @@ let pop_require_object ctx =
 	ctx.saved_require_object <- List.tl ctx.saved_require_object
 ;;
 
+let push_return_type ctx t =
+	ctx.saved_return_types <- t::ctx.saved_return_types
+;;
+
+let pop_return_type ctx =
+	ctx.saved_return_types <- List.tl ctx.saved_return_types
+;;
+
+let return_type ctx =
+	List.hd ctx.saved_return_types
+;;
 let debug ctx str =
 	if d then ctx.writer#write str
 ;;
@@ -2160,7 +2173,15 @@ and generateExpression ctx e =
 			ctx.writer#write "}";
 		| Some e ->
 			ctx.writer#write "return ";
+			let t = return_type ctx (*t_of ctx e.eexpr*) in
+			let st = (*match t with Some t ->*) typeToString ctx t e.epos (*| _ -> "?"*) in 
+			(*ctx.writer#write("/* " ^ typeToString ctx e.etype e.epos ^ " -> "
+							^ st
+							(*^ (match (t_of ctx e.eexpr) with Some t -> typeToString ctx t e.epos | _ -> "Nothing")*) 
+							^ " */");*)
+			let c = coercion ctx e.etype t in
 			generateValue ctx e;
+			c();
 			if ctx.return_needs_semicolon then ctx.writer#write ";";
 		);
 	| TBreak ->
@@ -3418,8 +3439,11 @@ let generateField ctx is_static field =
 							ctx.writer#write contents;
 							ctx.writer#end_block
 					| _ -> ()
-				end else
-					generateExpression ctx func.tf_expr
+				end else begin
+					push_return_type ctx func.tf_type;
+					generateExpression ctx func.tf_expr;
+					pop_return_type ctx
+				end
 			end else
 				ctx.writer#write ";";
 		end
