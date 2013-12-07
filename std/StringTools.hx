@@ -314,7 +314,7 @@ class StringTools {
 		else
 			return untyped s.Replace(sub, by);
 		#elseif objc
-			return untyped __objc__("[s replaceOccurrencesOfString:sub withString:by options:nil range:nil]");
+			return untyped __objc__("[s stringByReplacingOccurrencesOfString:sub withString:by]");
 		#else
 		return s.split(sub).join(by);
 		#end
