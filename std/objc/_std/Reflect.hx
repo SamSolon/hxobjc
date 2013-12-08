@@ -30,6 +30,12 @@
 //        return [o respondsToSelector:NSSelectorFromString(field)];
 //    ')
 	public static function hasField( o : Dynamic, field : String ) : Bool {
+		if (untyped __objc__("[o isKindOfClass:[NSDictionary class]]")) {
+			var m:Map<String, Dynamic> = cast o;
+		  // Do key lookup
+		  return m.exists(field);
+		}
+		else 
 		return untyped __objc__ ("[o respondsToSelector:NSSelectorFromString(field)]");
 		//return false;
 	}
