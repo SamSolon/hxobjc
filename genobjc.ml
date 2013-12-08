@@ -2284,6 +2284,21 @@ and generateExpression ctx e =
 			(* ctx.writer#write ("[NSDictionary dictionaryWithObjectsAndKeys:@\""^file^"\",@\"fileName\", @\""^(Printf.sprintf "%ld" line)^"\",@\"lineNumber\", @\""^class_name^"\",@\"className\", @\""^meth^"\",@\"methodName\", nil]"); *)
 			ctx.writer#write ("@{@\"fileName\":@\""^file^"\", @\"lineNumber\":@\""^(Printf.sprintf "%ld" line)^"\", @\"className\":@\""^class_name^"\", @\"methodName\":@\""^meth^"\"}");
 	| TObjectDecl fields ->
+		if (List.for_all (fun (n, texpr) -> 
+			match texpr.eexpr with
+			| TField _ | TConst _ -> true
+			| _ -> false) fields) then (* create a map for the object *)
+		begin
+			ctx.writer#write "[NSMutableDictionary dictionaryWithObjectsAndKeys:";
+			List.iter ( fun (key, expr) ->
+				generateValue ctx expr;
+				ctx.writer#write (",");
+				ctx.writer#write ("	@\""^key^"\"");
+				ctx.writer#write (",");
+	  	) fields;
+			ctx.writer#write "nil]";
+		end 
+		else begin
 		ctx.generating_object_declaration <- true;
 		push_require_pointer ctx true;
 		
@@ -2475,7 +2490,7 @@ and generateExpression ctx e =
 						[^BOOL() { return p < [a count]; } copy], @"hasNext",
 						[^id() { id i = [a objectAtIndex:p]; p += 1; return i; } copy], @"next",
 						nil]; *)
-						
+		end
 	| TArrayDecl el ->
 		push_require_pointer ctx true;
 		push_require_object ctx true;
