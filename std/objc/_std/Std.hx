@@ -33,7 +33,7 @@
 	}
 	
 	public static function string( s : Dynamic ) : String {
-		return s.description();
+		return untyped __objc__("[s description]");
 	}
 
 	public static function int( x : Float ) : Int {
