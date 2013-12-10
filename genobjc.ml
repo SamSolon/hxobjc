@@ -2572,6 +2572,8 @@ and generateExpression ctx e =
 				end else 
 					ctx.writer#write(" init");
 				ctx.writer#write("]");
+			| ([],"Array") ->
+					ctx.writer#write("[[" ^ remapHaxeTypeToObjc ctx false c.cl_path null ^ " alloc] init]");
 			| ([],"SEL") ->
 				ctx.writer#write "@selector(";
 				ctx.generating_selector <- true;
