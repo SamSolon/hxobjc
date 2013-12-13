@@ -1973,9 +1973,9 @@ and generateExpression ctx e =
 					| TFun _ -> if ctx.generating_left_side_of_operator && not ctx.evaluating_condition then "hx_dyn_" else "";
 					| _ -> "";
 				) in
-				let fan = if (ctx.generating_self_access && ctx.generating_calls>0 && ctx.generating_fields>=2) then "." 
+				let fan = "." (*if (ctx.generating_self_access && ctx.generating_calls>0 && ctx.generating_fields>=2) then "." 
 				else if (not ctx.generating_self_access && ctx.generating_calls>0) then " "
-				else if (ctx.generating_self_access && ctx.generating_calls>0) then " " else "." in
+				else if (ctx.generating_self_access && ctx.generating_calls>0) then " " else "."*) in
 				ctx.writer#write (fan^(if ctx.generating_custom_selector then "" else f_prefix^(remapKeyword (field_name fa))));
 			end;
 			ctx.generating_property_access <- false;
