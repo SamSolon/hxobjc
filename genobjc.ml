@@ -1418,7 +1418,8 @@ let rec generateCall ctx (func:texpr) arg_list =
 		| _ -> ());
 		ctx.writer#write("*/");
 *)
-		ctx.generating_custom_selector <- (String.length sel > 0);
+		let has_customer_selector = String.length sel > 0 in
+		ctx.generating_custom_selector <- has_customer_selector;
 		let generating_with_args = match func.etype with TFun(params, t) -> List.length params > 0 | _ -> List.length arg_list > 0 in
 		if (generating_with_args || isSuper func) then begin
 			ctx.writer#write("[");
@@ -1449,7 +1450,7 @@ let rec generateCall ctx (func:texpr) arg_list =
 				generateValue ctx texpr;
 				
 				(* The first selector isn't generated since it's the name so we just write it out here*)
-				ctx.writer#write(" " ^ (remapKeyword (Type.field_name tfield_access)));
+				if (not has_customer_selector) then ctx.writer#write(" " ^ (remapKeyword (Type.field_name tfield_access)));
 			| TConst TSuper ->
 				(* Only way this should happen is in a CTOR -- so call the init method*)
 				generateValue ctx func;
