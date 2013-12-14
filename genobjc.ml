@@ -836,7 +836,7 @@ let remapKeyword name =
 	| "BIG_ENDIAN" | "LITTLE_ENDIAN" | "assert" | "NULL" | "nil" | "wchar_t" | "EOF"
 	| "const_cast" | "dynamic_cast" | "explicit" | "export" | "mutable" | "namespace"
  	| "reinterpret_cast" | "static_cast" | "typeid" | "typename" | "virtual"
-	| "initWithFrame" | "initWithStyle"
+	(*| "initWithFrame" | "initWithStyle"*)
 	| "signed" | "unsigned" | "struct" -> "_" ^ name
 	| "asm" -> "_asm_"
 	| "__null" -> "null"
