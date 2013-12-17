@@ -67,11 +67,11 @@ class Array<T> {
 
 	public function pop () : Null<T> {
 		//trace("pop");
-		if( untyped this.count() == 0 )
+		if( this.length == 0 )
 			return null;
-		var theLastObject :T = untyped this.lastObject();
+		var theLastObject :T = untyped __objc__("[self lastObject]");
 		untyped __objc__("if ([theLastObject isKindOfClass:[NSNull class]]) theLastObject = nil");
-		untyped this.removeLastObject();
+		untyped __objc__("[self removeLastObject]");
 		return theLastObject;
 	}
 
