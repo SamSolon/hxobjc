@@ -407,7 +407,7 @@ module MetaInfo = struct
 		| GetterBody -> ":getterBody",("Set the code inside a getter method",[UsedOn TClassField;Platform ObjC])
 		| Import -> ":import",("Generates an #import statement for a native class",[Platform ObjC])
 		| Framework -> ":framework",("Generates an #import for the framework instead the class path",[Platform ObjC])
-		| NativeImpl -> ":nativeImpl",("Specifies that the property or method is implemented by a native superclass",[Platform ObjC])
+		| NativeImpl -> ":nativeImpl",("Specifies that the property or method is implemented by a native superclass, applied to a static method will call without Class",[Platform ObjC])
 		| Selector -> ":sel",("Use this as a signature instead the method arguments",[Platform ObjC])
 		| Weak -> ":weak",("Declaring a property with weak reference instead strong",[Platform ObjC])
 		| Last -> assert false

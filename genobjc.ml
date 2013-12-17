@@ -1343,9 +1343,14 @@ let rec generateCall ctx (func:texpr) arg_list =
 		| _ when ctx.generating_c_call -> Some func
 		| _ -> None in
 	(* Generate a C call. Used in some low level operations from cocoa frameworks: CoreGraphics *)
+	let generate_args args = 
+		ctx.writer#write("(");
+		concat ctx ", " (generateValue ctx) args;
+		ctx.writer#write(")") in
 	match f with 
 	| Some f ->
 		debug ctx "-C-";
+		ctx.generating_c_call <- false;
 		(match f.eexpr, arg_list with
 		| TCall (x,_) , el ->
 			ctx.writer#write "(";
@@ -1354,6 +1359,14 @@ let rec generateCall ctx (func:texpr) arg_list =
 			ctx.writer#write "(";
 			concat ctx ", " (generateValue ctx) arg_list;
 			ctx.writer#write ")";
+		| TField (texpr, FStatic(tclass, tclass_field)), el ->
+			if Meta.has Meta.NativeImpl tclass_field.cf_meta then
+				ctx.writer#write(tclass_field.cf_name)
+			else begin
+				ctx.imports_manager#add_class tclass;
+				ctx.writer#write(snd tclass.cl_path ^ "." ^ tclass_field.cf_name);
+			end;
+			generate_args el
 		(* | TField(ee,v),args when isVarField ee v ->
 			ctx.writer#write "TField(";
 			generateValue ctx func;
