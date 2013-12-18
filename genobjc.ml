@@ -2954,6 +2954,8 @@ and generateValue ctx e =
 		| _ -> error("Can't generate TField/FClosure with type " ^ (s_t tclass_field.cf_type) ^ " yet") e.epos);
 		if not(ctx.generating_selector) then 
 			ctx.writer#write(")], nil]")
+	| TField(texpr, FStatic(tclass, tclass_field)) when Meta.has Meta.NativeImpl tclass_field.cf_meta ->
+			ctx.writer#write(tclass_field.cf_name)
 	| TField(texpr, tfield_access) when isPrivateVar ctx texpr tfield_access ->
 			generatePrivateVar ctx texpr tfield_access
 	| TField(texpr, tfield_access) when is_message_target tfield_access ->
