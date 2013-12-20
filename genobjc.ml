@@ -716,30 +716,30 @@ let isTypeParam texpr_expr pname =
 	with _ -> false
 ;;
 
-(* Check if texpr_expr is a function that we should call *)
-let isFunctionVar texpr_expr = 
+(* Check if texpr_expr is a variable containing a function that we should call*)
+(* indirectly when texpr_expr is the target of a call *)
+(* Because of the way we store a "closure", as an [object, selector] array we have to *)
+(* know that we've stored the value that way so we follow the expression chain which*)
+(* until we find something that contains a TField var whose type is a TFun.*)
+let rec isFunctionVar texpr_expr = 
 	match texpr_expr with
-	| TCall(texpr, _) ->
-		(match follow texpr.etype with
-		| TFun _ -> true
-		| _ -> false)
+	| TCall(texpr, _) -> 
+			(match follow texpr.etype with
+			| TFun _ -> true
+			| _ -> isFunctionVar texpr.eexpr)
 	| TLocal tvar -> 
-		(match follow tvar.v_type with
-		| TFun _ -> true
-		| _ -> false)
-	| TField(_, tfield_access) ->
+			(match follow tvar.v_type with
+			| TFun _ -> true
+			| _ -> false) (* Should we be following something *)
+	| TField(texpr, tfield_access) ->
 		(match extract_field tfield_access with
-		| Some tcf ->
-				let ft = field_type tcf in
-				(match ft with
-				| TType(tdef, _) ->
-						let tt = follow tdef.t_type in
-						(match tt with
-							| TFun _ -> true
-							| _ -> false)
+			| Some ({cf_kind = Var _} as tcf) ->
+				(match follow tcf.cf_type with
+				| TFun _ -> true
 				| _ -> false)
-		| _ -> false)
-	| _ -> false
+			| _ -> false
+			)
+		| _ -> false
 ;;
 
 (* Type name for constant *)
