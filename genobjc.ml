@@ -4414,7 +4414,7 @@ let generatePlist common_ctx file_info  =
 let generateEnumHeader ctx enum_def =
 	let enumt = match enum_def.e_path with _,n -> n in
 	ctx.writer#write("@interface " ^ enumt ^  ":NSObject
-@property(readonly) int _Index;
+@property(readonly) int Index;
 +(id)create:(NSString*)ctor;
 +(id)create:(NSString*)ctor withParams:(NSArray*)params;
 +(id)withIndex:(int)index;
@@ -4440,7 +4440,7 @@ NSMutableDictionary *ctorbyname;
 }
 
 +(id)create:(NSString*)ctor {
-	[self create:ctor withParams:nil];
+	return [self create:ctor withParams:nil];
 }
 
 +(id)create:(NSString*)ctor withParams:(NSArray*)params {
@@ -4460,7 +4460,7 @@ NSMutableDictionary *ctorbyname;
 
 -(id)initWithEnumIndex:(int)index {
 	self = [self init];
-	__Index = index;
+	_Index = index;
 	return self;
 }
 @end

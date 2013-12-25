@@ -155,7 +155,7 @@ class Type {
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
-		return cast(untyped e.__Index(), Int);
+		return cast(untyped e.Index(), Int);
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
