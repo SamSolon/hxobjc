@@ -33,13 +33,13 @@ enum XmlType {
     DocumentType;
 }
 @:coreApi class Xml {
-	public static var Element(default,null) : XmlType;
-	public static var PCData(default,null) : XmlType;
-	public static var CData(default,null) : XmlType;
-	public static var Comment(default,null) : XmlType;
-	public static var DocType(default,null) : XmlType;
-	public static var ProcessingInstruction(default,null) : XmlType;
-	public static var Document(default,null) : XmlType;
+	public static var Element(default,null) : XmlType = ElementType;
+	public static var PCData(default,null) : XmlType = PCDataType;
+	public static var CData(default,null) : XmlType = CDataType;
+	public static var Comment(default,null) : XmlType = CommentTypeType;
+	public static var DocType(default,null) : XmlType = DocTypeType;
+	public static var ProcessingInstruction(default,null) : XmlType = ProcessingInstructionType;
+	public static var Document(default,null) : XmlType = DocumentType;
 
 
 	private var _nodeName : String;
