@@ -2205,6 +2205,8 @@ and generateExpression ctx e =
 		(* if ctx.in_value <> None then unsupported e.epos; *)
 		ctx.writer#write "continue"
 	| TBlock expr_list ->
+		let genctor = ctx.generating_constructor in
+		ctx.generating_constructor <- false; (* don't let any nested blocks see it true *)
 		(* If we generate a dynamic method do not open the block because it was opened already *)
 		if not ctx.generating_objc_block then begin
 			ctx.writer#begin_block;
@@ -2238,10 +2240,9 @@ and generateExpression ctx e =
 			ctx.generating_fields <- 0;
 			(* ctx.generating_self_access <- false; *)
 		) expr_list;
-		if ctx.generating_constructor then begin
+		if genctor then begin
 			ctx.writer#write "return self;";
 			ctx.writer#new_line;
-			ctx.generating_constructor <- false
 		end;
 		ctx.writer#end_block;
 	| TFunction f ->
