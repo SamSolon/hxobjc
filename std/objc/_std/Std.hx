@@ -25,7 +25,14 @@
 
 @:coreApi class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped v.isKindOfClass ( t.__class() );
+//		var c = t.__class();
+//		if (untyped __objc__("[c isKindOfClass:[NSObjectProtocol class]]")) {
+//			return untyped __objc__("[[t class] conformsToProtocol:c]");
+//		}
+		
+//		return untyped v.isKindOfClass(c);
+
+		return untyped v.isKindOfClass(t.__class());
 	}
 	
 	public static function instance<T>( v : { }, c : Class<T> ) : T {
@@ -33,7 +40,7 @@
 	}
 	
 	public static function string( s : Dynamic ) : String {
-		return untyped __objc__("[s description]");
+		return if (s == null) "null" else untyped __objc__("[s description]");
 	}
 
 	public static function int( x : Float ) : Int {
