@@ -1013,12 +1013,12 @@ let isString ctx e =
 
 (* Coerce a value fromT toT *)
 (* This version only converts numbers from/to objects which are assume to be NSNumber *)
-let coercion ctx fromT toT =
+let coercion ctx fromT toT forceToObject =
 	let sfrom = typeToString ctx fromT null in
 	let sto = typeToString ctx toT null in
-	(*ctx.writer#write("/*coercion from:" ^ sfrom ^ " to:" ^sto ^ "*/");*)
 	let fromisv = isValue sfrom in
-	let toisv = isValue sto in
+	let toisv = isValue sto && not(forceToObject) in
+	(*ctx.writer#write("/* coercion from:" ^ sfrom ^ " to: " ^ sto ^ " */");*)
 	if fromisv != toisv then begin (* value to/from object *)
 		if toisv then
 			match sto with
@@ -1027,7 +1027,7 @@ let coercion ctx fromT toT =
 			| _ -> fun() -> () 
 		else
 			match sfrom with
-			| "int"|"bool" -> ctx.writer#write("[NSNumber numberWithInt:"); fun() -> ctx.writer#write("]")
+			| "int"|"bool"|"BOOL" -> ctx.writer#write("[NSNumber numberWithInt:"); fun() -> ctx.writer#write("]")
 			| "float" -> ctx.writer#write("[NSNumber numberWithFloat:"); fun() -> ctx.writer#write("]")
 			| _ -> fun() -> ()
 	end
@@ -1948,7 +1948,7 @@ and generateExpression ctx e =
 			ctx.writer#write (Printf.sprintf " %s " s_op);
 			ctx.generating_right_side_of_operator <- true;
 			push_require_pointer ctx false;
-			let c = coercion ctx (exprt e2) (exprt e1) in
+			let c = coercion ctx (exprt e2) (exprt e1) (false) in
 			generateValueOp ctx e2;
 			c();
 			pop_require_pointer ctx;
@@ -2193,7 +2193,7 @@ and generateExpression ctx e =
 							^ st
 							(*^ (match (t_of ctx e.eexpr) with Some t -> typeToString ctx t e.epos | _ -> "Nothing")*) 
 							^ " */");*)
-			let c = coercion ctx e.etype t in
+			let c = coercion ctx e.etype t false in
 			generateValue ctx e;
 			c();
 			if ctx.return_needs_semicolon then ctx.writer#write ";";
@@ -2641,7 +2641,7 @@ and generateExpression ctx e =
 								else begin
 									let v = args_array_e.(!index) in
 									let vt = t_of_texpr ctx v in
-									let finish = coercion ctx vt t in
+									let finish = coercion ctx vt t false in
 									generateValue ctx v;
 									finish()
 								end;
@@ -3099,14 +3099,14 @@ and generateValue ctx e =
 		ctx.writer#write "(";
 		generateValue ctx cond;
 		ctx.writer#write " ? ";
-		let finishthen = coercion ctx (t_of_texpr ctx e) exprt in
+		let finishthen = coercion ctx (t_of_texpr ctx e) exprt false in
 		generateValue ctx e;
 		finishthen();
 		ctx.writer#write " : ";
 		(match eo with
 		| None -> ctx.writer#write "nil"
 		| Some e -> 
-				let finishelse = coercion ctx (t_of_texpr ctx e) exprt in
+				let finishelse = coercion ctx (t_of_texpr ctx e) exprt false in
 				generateValue ctx e;
 				finishelse());
 		ctx.writer#write ")"
@@ -3144,7 +3144,30 @@ and
 		ctx.writer#write(" objectAtIndex:1] pointerValue]");
 		List.iter (fun e -> ctx.writer#write(", "); generateValue ctx e) arg_list;
 		ctx.writer#write(")")
-
+and
+	generateBlock ctx blockexpr rtype =
+		match blockexpr.eexpr with
+		| TBlock exprlist ->
+				let rec genex el = 
+					(match el with
+						| [] -> ()
+						| {eexpr = TReturn (Some texpr)}::tail ->
+								(* Coerce the return value *)
+								ctx.writer#write("return ");
+								let fin = coercion ctx texpr.etype rtype false in 
+								generateValue ctx texpr;
+								fin();
+								ctx.writer#terminate_line
+						| head::tail ->
+								generateExpression ctx head;
+								ctx.writer#terminate_line;
+								genex tail
+					) in
+				ctx.writer#begin_block;
+				genex exprlist;
+				ctx.writer#end_block
+		| _ -> error "generateBlock only supports TBlock" blockexpr.epos 
+		
 let generateProperty ctx field pos is_static =
   (* Make sure we're importing the class for this property *)
 	(match field.cf_type with
