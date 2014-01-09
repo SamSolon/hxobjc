@@ -2257,7 +2257,7 @@ and generateExpression ctx e =
 			ctx.generating_objc_block <- true;
 			let h = generateFunctionHeader ctx None [] f.tf_type f.tf_args [] e.epos ctx.in_static HeaderBlockInline in
 			ctx.generating_objc_block <- false;
-			generateExpression ctx f.tf_expr;
+			generateBlock ctx f.tf_expr f.tf_type;
 			h();
 		end else begin
 			ctx.generating_objc_block <- true;
