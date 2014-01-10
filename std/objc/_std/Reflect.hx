@@ -26,11 +26,15 @@
 @:include("objc/runtime.h")
 @:coreApi class Reflect {
 
+	static function isMap(o:Dynamic):Bool {
+		return untyped __objc__("[o isKindOfClass:[NSDictionary class]]");
+	}
+	
 //    @:functionCode('
 //        return [o respondsToSelector:NSSelectorFromString(field)];
 //    ')
 	public static function hasField( o : Dynamic, field : String ) : Bool {
-		if (untyped __objc__("[o isKindOfClass:[NSDictionary class]]")) {
+		if (isMap(o)) {
 			var m:Map<String, Dynamic> = cast o;
 		  // Do key lookup
 		  return m.exists(field);
@@ -78,6 +82,12 @@
 	public static function fields( o : Dynamic ) : Array<String> untyped {
 		if( o == null ) return new Array();
 		var a : Array<String> = [];
+		if (isMap(o)) {
+			var map:Map<String, Dynamic> = cast o;
+			for (k in map.keys()) {
+				a.push(k);
+			}
+		}
 		//o.hx_get_fields(a);
 		return a;
 	}
