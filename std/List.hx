@@ -62,6 +62,11 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function push( item : T ) {
+		if (length == 0) {
+			add(item);
+			return;
+		}
+		
 		var x : Array<Dynamic> = #if neko
 			untyped __dollar__array(item,h)
 		#else
