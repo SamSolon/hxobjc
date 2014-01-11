@@ -2304,7 +2304,7 @@ and generateExpression ctx e =
 	| TObjectDecl fields ->
 		if (List.for_all (fun (n, texpr) -> 
 			match texpr.eexpr with
-			| TField _ | TConst _ -> true
+			| TField _ | TConst _ | TCall _ -> true
 			| _ -> false) fields) then (* create a map for the object *)
 		begin
 			ctx.writer#write "[NSMutableDictionary dictionaryWithObjectsAndKeys:";
