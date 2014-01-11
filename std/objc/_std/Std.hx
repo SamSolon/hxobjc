@@ -23,16 +23,18 @@
  * DAMAGE.
  */
 
+import objc.foundation.NSObject;
+
 @:coreApi class Std {
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-//		var c = t.__class();
-//		if (untyped __objc__("[c isKindOfClass:[NSObjectProtocol class]]")) {
-//			return untyped __objc__("[[t class] conformsToProtocol:c]");
-//		}
+		var c = t.__class();
 		
-//		return untyped v.isKindOfClass(c);
-
-		return untyped v.isKindOfClass(t.__class());
+		if (untyped __objc__("[v isKindOfClass:c]")) {
+			return true;
+		}
+		
+		// Assume its a protocol (is there a way to check for this directly?)
+		return untyped __objc__("[[v class] conformsToProtocol:t]");
 	}
 	
 	public static function instance<T>( v : { }, c : Class<T> ) : T {
