@@ -1018,11 +1018,11 @@ let coercion ctx fromT toT forceToObject =
 	let sto = typeToString ctx toT null in
 	let fromisv = isValue sfrom in
 	let toisv = isValue sto && not(forceToObject) in
-	(*ctx.writer#write("/* coercion from:" ^ sfrom ^ " to: " ^ sto ^ " */");*)
+	(*ctx.writer#write("/* coercion from:" ^ sfrom ^ "(" ^ string_of_bool(fromisv) ^ ") to: " ^ sto ^ "(" ^ string_of_bool(toisv) ^ ") */");*)
 	if fromisv != toisv then begin (* value to/from object *)
 		if toisv then
 			match sto with
-			| "int"|"bool" -> ctx.writer#write("["); fun() -> ctx.writer#write(" intValue]")
+			| "int"|"bool"|"BOOL" -> ctx.writer#write("["); fun() -> ctx.writer#write(" intValue]")
 			| "float" -> ctx.writer#write("["); fun() -> ctx.writer#write(" floatValue]")
 			| _ -> fun() -> () 
 		else
