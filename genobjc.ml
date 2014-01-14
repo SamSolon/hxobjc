@@ -1170,7 +1170,8 @@ let generateConstant ctx p = function
 	| TString s -> ctx.writer#write (Printf.sprintf "@\"%s\"" (Ast.s_escape s))
 	| TBool b ->
 		let v = if b then "YES" else "NO" in
-		ctx.writer#write(if require_pointer ctx then Printf.sprintf "[NSNumber numberWithInt:%s]" v else v)
+		(*ctx.writer#write(if require_pointer ctx then Printf.sprintf "[3NSNumber numberWithInt:%s]" v else v)*)
+		ctx.writer#write(v);
 	| TNull -> ctx.writer#write (if require_object ctx then "[NSNull null]" else "nil")
 (*	| TNull -> ctx.writer#write (if ctx.require_pointer then "[NSNull null]" else "nil")*)
 	| TThis -> ctx.writer#write "self"; ctx.generating_self_access <- true 
