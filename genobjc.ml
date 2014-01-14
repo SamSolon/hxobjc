@@ -1911,8 +1911,9 @@ and generateExpression ctx e =
 				pop_require_pointer ctx
 			| TField(texpr, tfield_access) when isPrivateVar ctx texpr tfield_access ->
 					generatePrivateVar ctx texpr tfield_access;
+					let leftt = match t_of ctx e1.eexpr with Some t -> (typeToString ctx t texpr.epos) | _ -> "id" in
 					ctx.writer#write(" = ");
-					makeValue op e1 e2 (isPointer (typeToString ctx texpr.etype texpr.epos))
+					makeValue op e1 e2 (isPointer leftt)
 			| TField(texpr, tfield_access) when not(is_message_target tfield_access) ->
 					let t = typeToString ctx e1.etype e1.epos in
 					(*ctx.writer#write("/* e1type:" ^ t ^ "*/");*)
