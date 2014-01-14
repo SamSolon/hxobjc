@@ -764,7 +764,7 @@ let rec t_of ctx texpr_expr = match texpr_expr with
 	| TConst(TSuper) -> None (* TODO: Type of super? *)
 	| TLocal(tvar) -> Some tvar.v_type
 	| TArray(e1, e2) -> None (* TODO: ????? *)
-	| TBinop(_, e1, e2) -> Some e1.etype (* TODO: Should probably be none!!!!*)
+	| TBinop(_, e1, e2) -> None
 	| TField(_, tfa) -> (match extract_field tfa with Some tcf -> Some tcf.cf_type | _ -> None)
 	| TTypeExpr(TClassDecl(_)) -> None (* TODO: A type for classes? *)
 	| TTypeExpr(TEnumDecl(_)) -> None (* TODO: Determine how we are representing the enum (fakeEnum) *)
