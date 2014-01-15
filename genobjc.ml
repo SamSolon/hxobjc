@@ -1942,23 +1942,34 @@ and generateExpression ctx e =
 			| _ -> let s_type = Type.s_type(print_context()) in 
 			       ctx.writer#write("Some other lvalue:" ^ (Type.s_expr_kind e1) ^ ":" ^ (Type.s_expr s_type e1) ^ " = " ^ (Type.s_expr s_type e2));
 		end else begin
-			let islogop = (s_op = "&&") || (s_op = "||") in
-			if islogop then ctx.writer#write("(");
-			ctx.generating_left_side_of_operator <- true;
-			(*let s_type = Type.s_type(print_context()) in 
-			ctx.writer#write("/* " ^ s_expr_kind e1 ^ "/" ^ s_expr s_type e1 ^ "/" ^ s_t e1.etype ^ "*/");*)
 			let exprt expr = match t_of ctx expr.eexpr with Some t -> t | _ -> expr.etype in
-			generateValueOp ctx e1;
-			ctx.generating_left_side_of_operator <- false;
-			ctx.writer#write (Printf.sprintf " %s " s_op);
-			ctx.generating_right_side_of_operator <- true;
-			push_require_pointer ctx false;
-			let c = coercion ctx (exprt e2) (exprt e1) (false) in
-			generateValueOp ctx e2;
-			c();
-			pop_require_pointer ctx;
-			ctx.generating_right_side_of_operator <- false;
-			if islogop then ctx.writer#write(")");
+			let islogop = (s_op = "&&") || (s_op = "||") in
+			if islogop then begin
+				(* coerce both sides to boolean *)
+				ctx.writer#write("(");
+				let c1fin = coercion ctx (exprt e1) ctx.com.basic.tbool false in
+				generateValueOp ctx e1;
+				c1fin();
+				ctx.writer#write (Printf.sprintf " %s " s_op);
+				let c2fin = coercion ctx (exprt e1) ctx.com.basic.tbool false in
+				generateValueOp ctx e2;
+				c2fin();
+				ctx.writer#write(")");
+			end else begin
+				ctx.generating_left_side_of_operator <- true;
+				(*let s_type = Type.s_type(print_context()) in 
+				ctx.writer#write("/* " ^ s_expr_kind e1 ^ "/" ^ s_expr s_type e1 ^ "/" ^ s_t e1.etype ^ "*/");*)
+				generateValueOp ctx e1;
+				ctx.generating_left_side_of_operator <- false;
+				ctx.writer#write (Printf.sprintf " %s " s_op);
+				ctx.generating_right_side_of_operator <- true;
+				push_require_pointer ctx false;
+				let c2fin = coercion ctx (exprt e2) (exprt e1) (false) in
+				generateValueOp ctx e2;
+				c2fin();
+				pop_require_pointer ctx;
+				ctx.generating_right_side_of_operator <- false;
+			end
 		end;
 	(* variable fields on interfaces are generated as (class["field"] as class) *)
 	(* | TField ({etype = TInst({cl_interface = true} as c,_)} as e,FInstance (_,{ cf_name = s })) ->
