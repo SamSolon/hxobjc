@@ -1484,6 +1484,7 @@ let rec generateCall ctx (func:texpr) arg_list =
 			let index = ref 0 in
 			let genparams plist =
 					List.iter ( fun (name, b, t) ->
+					if !index < (List.length arg_list) then begin
 						if Array.length sel_arr > 0 then
 							ctx.writer#write (" "^sel_arr.(!index)^":")
 						else begin
@@ -1491,9 +1492,6 @@ let rec generateCall ctx (func:texpr) arg_list =
 							ctx.writer#write(":")
 					  end;
 						(* TODO: inspect the bug, why is there a different number of arguments. In StringBuf *)
-						if !index >= (List.length arg_list) then
-							ctx.writer#write "nil"
-						else begin
 							let st = typeToString ctx t func.epos in
 							let prequired = not(isValue st) || tp name in
 							push_require_pointer ctx prequired;
@@ -2222,6 +2220,7 @@ and generateExpression ctx e =
 		ctx.writer#write "continue"
 	| TBlock expr_list ->
 		let genctor = ctx.generating_constructor in
+		ctx.generating_calls <- 0;
 		ctx.generating_constructor <- false; (* don't let any nested blocks see it true *)
 		(* If we generate a dynamic method do not open the block because it was opened already *)
 		if not ctx.generating_objc_block then begin
@@ -2260,6 +2259,7 @@ and generateExpression ctx e =
 			ctx.writer#write "return self;";
 			ctx.writer#new_line;
 		end;
+		ctx.generating_constructor <- genctor;
 		ctx.writer#end_block;
 	| TFunction f ->
 		if ctx.generating_var then
@@ -3490,6 +3490,51 @@ let generateField ctx is_static field =
 	(* let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || 
 	(f.cf_name = "main" && static) || f.cf_name = "resolve" || has_meta ":public" f.cf_meta in *)
 	let pos = ctx.class_def.cl_pos in
+	(* Generate "stub" methods to handle optional args *)
+	let genstubs (field, tfargs, genbody) =
+			match field.cf_type with 
+			| TFun(args, _) -> 
+					List.iter (fun (n, opt, _) -> ctx.writer#write("\n     /* " ^ n ^ " optional:" ^ string_of_bool(opt) ^ " ctor:" ^ string_of_bool(ctx.generating_constructor) ^ " */")) args; 
+					let rec genastub (fieldargs, funargs) =
+						(match fieldargs, funargs with
+						| (n, true, _)::fieldargstail, optfunarg::funargstail->
+								let genargs = List.rev funargstail in
+								ctx.writer#terminate_line;
+								ctx.writer#write("/* Optional " ^ n ^ " */");
+								ctx.writer#terminate_line;
+								let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta field.cf_type genargs field.cf_params pos is_static HeaderObjc in
+								h();
+								if genbody then begin
+									ctx.writer#begin_block;
+								
+									(* Create the parameter list for the params we have *)
+									let passedparams = List.map (
+										fun (tvar, tconst) ->
+										mk (TLocal(tvar)) tvar.v_type pos) genargs in
+								
+									(* Add the missing param with its default value *)
+									let callparams = 
+										match optfunarg with
+											| (tvar, tconst) -> passedparams @ [(mk (TConst(match tconst with Some tconst -> tconst | _ -> TNull)) tvar.v_type pos)] in
+									let tfa = if is_static then FStatic(ctx.class_def, field) else FInstance(ctx.class_def, field) in
+									let ftexpr = mk (TConst(TThis)) field.cf_type pos in
+									let gencallexpr = mk (TField(ftexpr, tfa)) field.cf_type pos in
+									if ctx.generating_constructor || (typeToString ctx field.cf_type pos) != "void"
+									then
+										ctx.writer#write("return "); 
+									generateCall ctx gencallexpr callparams;
+									ctx.writer#terminate_line;
+									ctx.writer#end_block;
+								end
+								else 
+									ctx.writer#write(";");
+
+								genastub(fieldargstail, funargstail)
+									
+						| _ -> ()) in
+					genastub(List.rev args, List.rev tfargs)
+			| _ -> () in 	
+			
 	match field.cf_expr, field.cf_kind with
 	| Some { eexpr = TFunction func }, Method (MethNormal | MethInline) ->
 		if field.cf_name = "main" && is_static then begin
@@ -3519,6 +3564,8 @@ let generateField ctx is_static field =
 				end
 			end else
 				ctx.writer#write ";";
+			
+			genstubs(field, func.tf_args, not ctx.generating_header);
 		end
 	| None, Method(MethNormal) ->
 			(*let s_type = Type.s_type(print_context()) in
@@ -3528,7 +3575,8 @@ let generateField ctx is_static field =
 		let args = List.map (fun (name,_, t) -> mktvar name t, None) (match field.cf_type with TFun(l, _) -> l | _ -> []) in 
 		let h = generateFunctionHeader ctx (Some (field.cf_name, field.cf_meta)) field.cf_meta field.cf_type args field.cf_params pos is_static HeaderObjc in
 		h();
-		ctx.writer#terminate_line
+		ctx.writer#terminate_line;
+		genstubs(field, args, false)
 	| Some { eexpr = TFunction func }, Method (MethDynamic) ->
 		ctx.writer#write "// Dynamic method defined with an objc method and a block property\n";
 		(* Generate function header *)
