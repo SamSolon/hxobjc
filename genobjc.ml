@@ -314,7 +314,6 @@ type context = {
 	mutable writer : sourceWriter;
 	mutable imports_manager : importsManager;
 	mutable get_sets : (string * bool,string) Hashtbl.t;
-	mutable function_arguments : (string,tconstant) Hashtbl.t;
 	mutable class_def : tclass;
 	mutable in_value : tvar option;
 	mutable in_static : bool;
@@ -355,7 +354,6 @@ let newContext common_ctx writer imports_manager file_info = {
 	writer = writer;
 	imports_manager = imports_manager;
 	get_sets = Hashtbl.create 0;
-	function_arguments = Hashtbl.create 0;
 	class_def = null_class;
 	in_value = None;
 	in_static = false;
@@ -1231,7 +1229,6 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 	);
 	
 	(* Function arguments and types *)
-	Hashtbl.clear ctx.function_arguments;
 	(* Generate the arguments of the function. Ignore the message name of the first arg *)
 	(* TODO: add (void) if no argument is present. Not mandatory *)
 	
@@ -1245,11 +1242,6 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 				ctx.writer#write (Printf.sprintf "%s:(%s%s)%s" (remapKeyword message_name) type_name (addPointerIfNeeded type_name) arg_name);
 				first_arg := false;
 				index := !index+1;
-				if not ctx.generating_header then begin
-					match c with
-					| None -> ();(* Hashtbl.add ctx.function_arguments arg_name (defaultValue arg_name) *)
-					| Some c -> Hashtbl.add ctx.function_arguments arg_name c
-				end
 			) args;
 			
 		| HeaderObjcWithoutParams ->
@@ -1257,11 +1249,6 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 				let type_name = declTypeToString ctx v.v_type pos in
 				let arg_name = (remapKeyword v.v_name) in
 				ctx.writer#write (Printf.sprintf ":(%s%s)%s" type_name (addPointerIfNeeded type_name) arg_name);
-				if not ctx.generating_header then begin
-					match c with
-					| None -> ();(* Hashtbl.add ctx.function_arguments arg_name (defaultValue arg_name) *)
-					| Some c -> Hashtbl.add ctx.function_arguments arg_name c
-				end
 			) args;
 			
 		| HeaderBlock ->
@@ -1282,11 +1269,6 @@ let generateFunctionHeader ctx name (meta:metadata) ft args params pos is_static
 				let arg_name = (remapKeyword v.v_name) in
 				let is_enum = (match v.v_type with | TEnum _ -> true | _ -> false) in
 				ctx.writer#write (Printf.sprintf "%s %s%s" type_name (if is_enum then "" else (addPointerIfNeeded type_name)) arg_name);
-				(* if not ctx.generating_header then begin
-					match c with
-					| None -> ();(* Hashtbl.add ctx.function_arguments arg_name (defaultValue arg_name) *)
-					| Some c -> Hashtbl.add ctx.function_arguments arg_name c
-				end *)
 			) args;
 			ctx.writer#write ")";
 
@@ -2228,18 +2210,6 @@ and generateExpression ctx e =
 			ctx.writer#new_line;
 		end;
 
-		if Hashtbl.length ctx.function_arguments > 0 then begin
-			ctx.writer#write "// Optional arguments";
-			ctx.writer#new_line;
-			Hashtbl.iter ( fun name data ->
-				ctx.writer#write ("if (!"^name^") "^name^" = ");
-				generateConstant ctx e.epos data;
-				ctx.writer#write ";";
-				ctx.writer#new_line;
-			) ctx.function_arguments;
-			Hashtbl.clear ctx.function_arguments;
-			ctx.writer#new_line;
-		end;
 		List.iter (fun e ->
 			(* Assign the result of a super call to self *)
 			(match e.eexpr with
