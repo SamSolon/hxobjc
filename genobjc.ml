@@ -3464,7 +3464,6 @@ let generateField ctx is_static field =
 	let genstubs (field, tfargs, genbody) =
 			match field.cf_type with 
 			| TFun(args, _) -> 
-					List.iter (fun (n, opt, _) -> ctx.writer#write("\n     /* " ^ n ^ " optional:" ^ string_of_bool(opt) ^ " ctor:" ^ string_of_bool(ctx.generating_constructor) ^ " */")) args; 
 					let rec genastub (fieldargs, funargs) =
 						(match fieldargs, funargs with
 						| (n, true, _)::fieldargstail, optfunarg::funargstail->
