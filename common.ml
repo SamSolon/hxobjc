@@ -735,7 +735,7 @@ let objc_ios_versions = List.map (fun v ->
 	let maj = int_of_float v in
 	let min = int_of_float (mod_float (v *. 10.) 10.) in
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
-) [4.0;4.3;5.0;6.0]
+) [4.0;4.3;5.0;6.0;7.0]
 
 let objc_osx_versions = List.map (fun v ->
 	let maj = int_of_float v in
