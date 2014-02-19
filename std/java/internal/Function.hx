@@ -78,4 +78,25 @@ import java.internal.Runtime;
 	{
 		return Runtime.callField(obj, field, dynArgs);
 	}
+	
+	@:functionCode('
+		if (to instanceof haxe.lang.Closure) {
+			haxe.lang.Closure toclosure = (haxe.lang.Closure)to;
+			return obj == toclosure.obj 
+					&&
+					(field != null && field.equals(toclosure.field));
+		}
+		
+		return false;
+	')
+	public function equals(to:Dynamic):Bool {
+		return false;
+	}
+	
+	@:functionCode('
+		return obj.hashCode() + field.hashCode();
+	')
+	public function hashCode():Int {
+		return 0;
+	}
 }
