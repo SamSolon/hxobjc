@@ -84,11 +84,12 @@ package java.internal;
 				if (v1 instanceof java.lang.Long || v2 instanceof java.lang.Long)
 					return v1c.longValue() == v2c.longValue();
 				return v1c.doubleValue() == v2c.doubleValue();
-			} else if (v1 instanceof java.lang.String || v1 instanceof haxe.lang.IEquatable) { //TODO see what happens with Boolean cases
-				return v1.equals(v2);
+			//} else if (v1 instanceof java.lang.String || v1 instanceof haxe.lang.IEquatable) { //TODO see what happens with Boolean cases
+			//	return v1.equals(v2);
 			}
 
-			return false;
+			//return false;
+			return v1.equals(v2);
 	')
 	public static function eq(v1:Dynamic, v2:Dynamic):Bool
 	{
